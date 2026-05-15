@@ -1,6 +1,7 @@
 import yfinance as yf
 import streamlit as st
 import pandas as pd
+import time
 
 st.title("Anita's Stock Screener")
 st.write("Filter stocks based on your investment criteria")
@@ -32,14 +33,12 @@ TICKERS = {
         "MSFT","NKE","PG","TRV","UNH","V","VZ","WBA","WMT","RTX"
     ],
     "Russell 2000 (Sample)": [
-        "ACLS","ADUS","AFCG","AGIO","ALGT","ALKS","AMCX","AMED","AMPH","AMSF",
-        "ANET","ANF","AORT","AROC","ASTE","ATNI","AVAV","AVNS","AXNX","AZTA",
-        "BCPC","BDSI","BFST","BGFV","BHB","BHLB","BKE","BLMN","BMRC","BOOT",
-        "BPOP","BRSP","BSVN","BV","BYFC","CAKE","CALM","CARG","CARS","CASA",
-        "CASH","CBRL","CCOI","CDRE","CENT","CEVA","CHEF","CHUY","CINF","CIVB",
-        "CLAR","CLDT","CLFD","CLOV","CMCO","CNMD","CNOB","CNXN","CODI","COHU",
-        "COOP","CORE","COUR","CRVL","CRVO","CSBR","CSGS","CSWI","CTBI","CTRE",
-        "CTRL","CUTR","CVBF","CVCO","CVLG","CVLT","CWST","DAKT","DCOM","DFIN"
+        "SAIA","WING","BOOT","FORM","MGNI","PRGS","ITRI","ENVA","CSWI","BCPC",
+        "MGEE","LANC","NWBI","SFBS","TOWN","WAFD","CVBF","NBTB","FULT","WSFS",
+        "CAKE","TXRH","BJRI","RRGB","DENN","CHUY","FRSH","HURN","AMSF","PRIM",
+        "ARCB","SAIA","HTLD","ODFL","MRTN","MATX","HUBG","JBHT","WERN","KNX",
+        "AGIO","ACAD","FOLD","HRMY","PTGX","RCUS","SERA","XNCR","IGMS","KROS",
+        "ADUS","AMED","FWRG","LHCG","MGLN","PDCO","PRSC","QTWO","RCKY","RELY"
     ]
 }
 
@@ -65,6 +64,7 @@ if st.button("🔍 Screen Stocks"):
     st.info(f"Screening {len(symbols)} stocks from {market}...")
 
     results = []
+    skipped = []
     progress = st.progress(0)
     status = st.empty()
 
@@ -80,6 +80,11 @@ if st.button("🔍 Screen Stocks"):
             ind = info.get("industry", "")
             name = info.get("longName", symbol)
             price = info.get("currentPrice", None)
+
+            # Skip if no key data available
+            if not pe and not roe:
+                skipped.append(symbol)
+                continue
 
             if roe:
                 roe = roe * 100
@@ -99,8 +104,12 @@ if st.button("🔍 Screen Stocks"):
                     "Avg Volume": f"{vol:,}" if vol else "N/A",
                     "Industry": ind
                 })
-        except:
-            pass
+
+        except Exception:
+            skipped.append(symbol)
+
+        # Small delay to avoid Yahoo Finance rate limiting
+        time.sleep(0.3)
 
         progress.progress((i + 1) / len(symbols))
 
@@ -120,3 +129,6 @@ if st.button("🔍 Screen Stocks"):
         )
     else:
         st.warning("No stocks matched your criteria. Try relaxing your filters!")
+
+    if skipped:
+        st.info(f"ℹ️ {len(skipped)} stocks skipped (no data available): {', '.join(skipped)}")
