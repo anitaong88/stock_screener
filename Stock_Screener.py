@@ -5,6 +5,7 @@ import time
 import urllib.parse
 
 st.title("Anita's Stock Screener")
+st.caption("v1.0 — May 18, 2025 9:00 PM PST")
 st.write("Filter stocks based on your investment criteria")
 
 # --- Hardcoded Ticker Lists ---
@@ -178,7 +179,23 @@ if st.button("🔍 Screen Stocks"):
     if results:
         st.success(f"✅ Found {len(results)} matching stocks from {market}!")
         df = pd.DataFrame(results)
-        st.dataframe(df)
+
+        # Add Yahoo Finance URL column for clickable links
+        df["Yahoo Finance"] = df["Symbol"].apply(
+            lambda s: f"https://finance.yahoo.com/quote/{s}"
+        )
+
+        st.dataframe(
+            df,
+            column_config={
+                "Yahoo Finance": st.column_config.LinkColumn(
+                    "🔗 More Info",
+                    help="Click to open company details on Yahoo Finance",
+                    display_text="View",
+                )
+            },
+            hide_index=True,
+        )
 
         # --- Download Options ---
         st.markdown("### 📥 Download Results")
