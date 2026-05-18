@@ -112,10 +112,26 @@ if st.button("🔍 Screen Stocks"):
 
     for i, symbol in enumerate(symbols):
         status.text(f"Checking {symbol} ({i+1}/{len(symbols)})...")
-        try:
-            stock = yf.Ticker(symbol)
-            info = stock.info
 
+        info = None
+        # Retry up to 3 times with increasing delay
+        for attempt in range(3):
+            try:
+                stock = yf.Ticker(symbol)
+                info = stock.info
+                if info and info.get("trailingPE") or info.get("returnOnEquity"):
+                    break  # Got valid data, stop retrying
+                else:
+                    time.sleep(1.0 * (attempt + 1))  # Wait longer each retry
+            except Exception:
+                time.sleep(1.0 * (attempt + 1))
+
+        if not info:
+            skipped.append(symbol)
+            progress.progress((i + 1) / len(symbols))
+            continue
+
+        try:
             pe = info.get("trailingPE", None)
             roe = info.get("returnOnEquity", None)
             vol = info.get("averageVolume", None)
@@ -126,6 +142,7 @@ if st.button("🔍 Screen Stocks"):
             # Skip if no key data available
             if not pe and not roe:
                 skipped.append(symbol)
+                progress.progress((i + 1) / len(symbols))
                 continue
 
             if roe:
@@ -150,8 +167,8 @@ if st.button("🔍 Screen Stocks"):
         except Exception:
             skipped.append(symbol)
 
-        # Small delay to avoid Yahoo Finance rate limiting
-        time.sleep(0.3)
+        # Delay between stocks to avoid Yahoo Finance rate limiting
+        time.sleep(1.0)
 
         progress.progress((i + 1) / len(symbols))
 
