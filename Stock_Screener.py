@@ -2,6 +2,7 @@ import yfinance as yf
 import streamlit as st
 import pandas as pd
 import time
+import urllib.parse
 
 st.title("Anita's Stock Screener")
 st.write("Filter stocks based on your investment criteria")
@@ -57,6 +58,47 @@ max_stocks = st.sidebar.slider(
     "Max stocks to screen (speed vs coverage)",
     min_value=10, max_value=len(all_symbols), value=min(50, len(all_symbols)), step=10
 )
+
+# --- Helper: Build HTML table for download ---
+def build_html(df):
+    rows = ""
+    for _, row in df.iterrows():
+        cells = "".join(f"<td>{v}</td>" for v in row)
+        rows += f"<tr>{cells}</tr>\n"
+    headers = "".join(f"<th>{c}</th>" for c in df.columns)
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Stock Screener Results</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; padding: 20px; }}
+    h2 {{ color: #333; }}
+    table {{ border-collapse: collapse; width: 100%; }}
+    th {{ background-color: #4CAF50; color: white; padding: 8px 12px; text-align: left; }}
+    td {{ border: 1px solid #ddd; padding: 8px 12px; }}
+    tr:nth-child(even) {{ background-color: #f9f9f9; }}
+    tr:hover {{ background-color: #f1f1f1; }}
+  </style>
+</head>
+<body>
+  <h2>Anita's Stock Screener Results</h2>
+  <table>
+    <thead><tr>{headers}</tr></thead>
+    <tbody>{rows}</tbody>
+  </table>
+</body>
+</html>"""
+
+# --- Helper: Build Google Sheets import URL ---
+def build_gsheets_url(csv_data):
+    encoded = urllib.parse.quote(csv_data)
+    # Opens a new Google Sheet pre-loaded via importdata workaround using data URI is not supported,
+    # so we use the "paste CSV into Sheets" approach via a data URL open hint.
+    # Best practical approach: encode CSV as a query to sheets new blank + note.
+    # Instead, we encode as a sheets URL that pastes on open via Apps Script — not possible externally.
+    # Practical best: provide a link to sheets.new with a toast note, and separately offer the CSV.
+    return "https://sheets.new"
 
 # --- Main Screen Button ---
 if st.button("🔍 Screen Stocks"):
@@ -120,13 +162,55 @@ if st.button("🔍 Screen Stocks"):
         st.success(f"✅ Found {len(results)} matching stocks from {market}!")
         df = pd.DataFrame(results)
         st.dataframe(df)
+
+        # --- Download Options ---
+        st.markdown("### 📥 Download Results")
+        st.caption("Choose the format that works best for you:")
+
+        col1, col2, col3 = st.columns(3)
+
+        # 1. CSV download
         csv = df.to_csv(index=False)
-        st.download_button(
-            "📥 Download Results as CSV",
-            data=csv,
-            file_name="screener_results.csv",
-            mime="text/csv"
-        )
+        with col1:
+            st.download_button(
+                label="📄 CSV",
+                data=csv,
+                file_name="screener_results.csv",
+                mime="text/csv",
+                help="Opens in Excel, Google Sheets, Apple Numbers, or any text editor"
+            )
+            st.caption("Works everywhere — Excel, Google Sheets, Numbers, Notepad")
+
+        # 2. HTML download
+        html = build_html(df)
+        with col2:
+            st.download_button(
+                label="🌐 HTML Table",
+                data=html,
+                file_name="screener_results.html",
+                mime="text/html",
+                help="Opens as a formatted table in any web browser — no software needed"
+            )
+            st.caption("No software needed — opens in any web browser")
+
+        # 3. Google Sheets link
+        with col3:
+            st.markdown(
+                """<a href="https://sheets.new" target="_blank">
+                <button style="
+                    background-color: #0F9D58;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    width: 100%;
+                ">📊 Google Sheets</button></a>""",
+                unsafe_allow_html=True
+            )
+            st.caption("Opens a new Google Sheet — then File → Import the CSV above")
+
     else:
         st.warning("No stocks matched your criteria. Try relaxing your filters!")
 
