@@ -3,9 +3,13 @@ import streamlit as st
 import pandas as pd
 import time
 import urllib.parse
+import io
+from docx import Document
+from docx.shared import Pt, RGBColor, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 st.title("Anita's Stock Screener")
-st.caption("v1.0 — May 18, 2025 9:00 PM PST")
+st.caption("v1.1 — May 19, 2026 12:46 AM PST — Added Word Doc export, clickable HTML links")
 st.write("Filter stocks based on your investment criteria")
 
 # --- Hardcoded Ticker Lists ---
@@ -64,7 +68,12 @@ max_stocks = st.sidebar.slider(
 def build_html(df):
     rows = ""
     for _, row in df.iterrows():
-        cells = "".join(f"<td>{v}</td>" for v in row)
+        cells = ""
+        for col, v in zip(df.columns, row):
+            if col == "Yahoo Finance":
+                cells += f'<td><a href="{v}" target="_blank">{v}</a></td>'
+            else:
+                cells += f"<td>{v}</td>"
         rows += f"<tr>{cells}</tr>\n"
     headers = "".join(f"<th>{c}</th>" for c in df.columns)
     return f"""<!DOCTYPE html>
@@ -94,12 +103,57 @@ def build_html(df):
 # --- Helper: Build Google Sheets import URL ---
 def build_gsheets_url(csv_data):
     encoded = urllib.parse.quote(csv_data)
-    # Opens a new Google Sheet pre-loaded via importdata workaround using data URI is not supported,
-    # so we use the "paste CSV into Sheets" approach via a data URL open hint.
-    # Best practical approach: encode CSV as a query to sheets new blank + note.
-    # Instead, we encode as a sheets URL that pastes on open via Apps Script — not possible externally.
-    # Practical best: provide a link to sheets.new with a toast note, and separately offer the CSV.
     return "https://sheets.new"
+
+# --- Helper: Build Word (.docx) document ---
+def build_docx(df):
+    doc = Document()
+
+    # Title
+    title = doc.add_heading("Anita's Stock Screener Results", level=1)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title.runs[0].font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+
+    doc.add_paragraph("")  # spacer
+
+    # Table: header + data rows
+    table = doc.add_table(rows=1, cols=len(df.columns))
+    table.style = "Table Grid"
+
+    # Header row — green background
+    hdr_cells = table.rows[0].cells
+    for i, col in enumerate(df.columns):
+        hdr_cells[i].text = col
+        run = hdr_cells[i].paragraphs[0].runs[0]
+        run.bold = True
+        run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        tc = hdr_cells[i]._tc
+        tcPr = tc.get_or_add_tcPr()
+        shd = OxmlElement("w:shd")
+        shd.set(qn("w:val"), "clear")
+        shd.set(qn("w:color"), "auto")
+        shd.set(qn("w:fill"), "4CAF50")
+        tcPr.append(shd)
+
+    # Data rows
+    for _, row in df.iterrows():
+        row_cells = table.add_row().cells
+        for i, val in enumerate(row):
+            row_cells[i].text = str(val)
+            row_cells[i].paragraphs[0].runs[0].font.size = Pt(9)
+
+    # Set column widths
+    for col in table.columns:
+        for cell in col.cells:
+            cell.width = Inches(1.2)
+
+    # Save to bytes buffer
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf.getvalue()
 
 # --- Main Screen Button ---
 if st.button("🔍 Screen Stocks"):
@@ -201,7 +255,7 @@ if st.button("🔍 Screen Stocks"):
         st.markdown("### 📥 Download Results")
         st.caption("Choose the format that works best for you:")
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
 
         # 1. CSV download
         csv = df.to_csv(index=False)
@@ -223,12 +277,24 @@ if st.button("🔍 Screen Stocks"):
                 data=html,
                 file_name="screener_results.html",
                 mime="text/html",
-                help="Opens as a formatted table in any web browser — no software needed"
+                help="Opens as a formatted table in any web browser — links are clickable!"
             )
-            st.caption("No software needed — opens in any web browser")
+            st.caption("Clickable links — opens in any web browser")
 
-        # 3. Google Sheets link
+        # 3. Word Doc download
+        docx_bytes = build_docx(df)
         with col3:
+            st.download_button(
+                label="📝 Word Doc",
+                data=docx_bytes,
+                file_name="screener_results.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                help="Opens in Microsoft Word, Google Docs, or LibreOffice"
+            )
+            st.caption("Opens in Word, Google Docs, or LibreOffice")
+
+        # 4. Google Sheets link
+        with col4:
             st.markdown(
                 """<a href="https://sheets.new" target="_blank">
                 <button style="
