@@ -2,3 +2,4 @@ yfinance==0.2.54
 streamlit
 pandas
 lxml
+python-docx
