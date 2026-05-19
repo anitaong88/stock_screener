@@ -8,7 +8,9 @@ from docx import Document
 from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-st.title("Anita's Stock Screener")
+st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
+
+st.markdown("### Anita's Stock Screener")
 st.caption("v1.1 — May 19, 2026 12:46 AM PST — Added Word Doc export, clickable HTML links")
 st.write("Filter stocks based on your investment criteria")
 
