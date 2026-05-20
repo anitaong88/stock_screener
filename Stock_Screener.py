@@ -15,7 +15,16 @@ FMP_BASE = "https://financialmodelingprep.com/stable"
 st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
-st.caption("v1.6 — May 20, 2026 — Fixed: None/falsy PE & ROE checks causing all stocks to be skipped")
+st.caption(
+    "**v1.7** — May 20, 2026 — Fixed: switched to free-plan compatible FMP endpoints "
+    "(`/api/v3/key-metrics-ttm` for ROE instead of `/ratios-ttm`; `volume` instead of `avgVolume`); "
+    "added PE fallback from profile endpoint  
+"
+    "**v1.6** — May 20, 2026 — Fixed: `not pe` / `not roe` falsy checks skipping stocks with valid zero values; "
+    "replaced with explicit `is None` checks  
+"
+    "**v1.5** — May 20, 2026 — Initial release: per-stock FMP API with rate limiting, free plan compatible"
+)
 st.write("Filter stocks based on your investment criteria")
 
 # --- Hardcoded Ticker Lists ---
@@ -164,9 +173,11 @@ def build_docx(df):
 # --- Helper: Fetch stock data per symbol (free plan compatible) ---
 def get_stock_data(symbol):
     try:
+        # --- Quote (free tier: price, pe, volume) ---
         quote_url = f"{FMP_BASE}/quote?symbol={symbol}&apikey={FMP_API_KEY}"
         quote_r = requests.get(quote_url, timeout=10).json()
 
+        # --- Profile (free tier: companyName, industry) ---
         profile_url = f"{FMP_BASE}/profile?symbol={symbol}&apikey={FMP_API_KEY}"
         profile_r = requests.get(profile_url, timeout=10).json()
 
@@ -178,17 +189,21 @@ def get_stock_data(symbol):
         quote   = quote_r[0]
         profile = profile_r[0]
 
-        ratios_url = f"{FMP_BASE}/ratios-ttm?symbol={symbol}&apikey={FMP_API_KEY}"
-        ratios_r = requests.get(ratios_url, timeout=10).json()
-        ratios = ratios_r[0] if ratios_r and isinstance(ratios_r, list) and len(ratios_r) > 0 else {}
+        # --- Key Metrics TTM (free tier: returnOnEquityTTM available on Basic) ---
+        # NOTE: /ratios-ttm requires Starter plan+. Use /key-metrics-ttm instead.
+        metrics_url = f"https://financialmodelingprep.com/api/v3/key-metrics-ttm/{symbol}?apikey={FMP_API_KEY}"
+        metrics_r = requests.get(metrics_url, timeout=10).json()
+        metrics = metrics_r[0] if metrics_r and isinstance(metrics_r, list) and len(metrics_r) > 0 else {}
 
+        # pe: from quote (free). volume: use "volume" not "avgVolume" (avgVolume needs paid plan).
+        # roe: from key-metrics-ttm field "roeTTM" (free Basic plan).
         return {
-            "pe":    quote.get("pe", None),
-            "roe":   ratios.get("returnOnEquityTTM", None),
-            "vol":   quote.get("avgVolume", None),
+            "pe":    quote.get("pe") or profile.get("pe"),
+            "roe":   metrics.get("roeTTM"),
+            "vol":   quote.get("volume") or quote.get("avgVolume"),
             "ind":   profile.get("industry", ""),
             "name":  profile.get("companyName", symbol),
-            "price": quote.get("price", None),
+            "price": quote.get("price"),
         }, None
     except Exception as e:
         return None, str(e)
