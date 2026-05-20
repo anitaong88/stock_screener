@@ -16,7 +16,8 @@ st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
 st.caption(
-    "v1.7 — May 20, 2026 — Fixed: free-plan FMP endpoints (/api/v3/key-metrics-ttm for ROE; volume not avgVolume); PE fallback from profile | "
+    "v1.8 — May 20, 2026 — Fixed: PE/ROE both None; now calculated from free endpoints (PE=price/EPS, ROE=netIncome/equity via income+balance sheet) | "
+    "v1.7 — May 20, 2026 — Fixed: free-plan FMP endpoints (key-metrics-ttm for ROE; volume not avgVolume); PE fallback from profile | "
     "v1.6 — May 20, 2026 — Fixed: falsy PE/ROE checks (not x) replaced with explicit is None checks | "
     "v1.5 — May 20, 2026 — Initial release: per-stock FMP API, rate limiting, free plan compatible"
 )
@@ -166,39 +167,57 @@ def build_docx(df):
     return buf.getvalue()
 
 # --- Helper: Fetch stock data per symbol (free plan compatible) ---
+# PE = price / EPS (both free). ROE = net income / shareholders equity (both free via income/balance sheet).
 def get_stock_data(symbol):
     try:
-        # --- Quote (free tier: price, pe, volume) ---
+        # --- Quote: price, volume ---
         quote_url = f"{FMP_BASE}/quote?symbol={symbol}&apikey={FMP_API_KEY}"
         quote_r = requests.get(quote_url, timeout=10).json()
 
-        # --- Profile (free tier: companyName, industry) ---
+        # --- Profile: companyName, industry ---
         profile_url = f"{FMP_BASE}/profile?symbol={symbol}&apikey={FMP_API_KEY}"
         profile_r = requests.get(profile_url, timeout=10).json()
 
-        if not quote_r or not isinstance(quote_r, list) or len(quote_r) == 0:
+        if not quote_r or not isinstance(quote_r, list):
             return None, f"No quote data: {str(quote_r)[:200]}"
-        if not profile_r or not isinstance(profile_r, list) or len(profile_r) == 0:
+        if not profile_r or not isinstance(profile_r, list):
             return None, f"No profile data: {str(profile_r)[:200]}"
 
         quote   = quote_r[0]
         profile = profile_r[0]
 
-        # --- Key Metrics TTM (free tier: returnOnEquityTTM available on Basic) ---
-        # NOTE: /ratios-ttm requires Starter plan+. Use /key-metrics-ttm instead.
-        metrics_url = f"https://financialmodelingprep.com/api/v3/key-metrics-ttm/{symbol}?apikey={FMP_API_KEY}"
-        metrics_r = requests.get(metrics_url, timeout=10).json()
-        metrics = metrics_r[0] if metrics_r and isinstance(metrics_r, list) and len(metrics_r) > 0 else {}
+        price = quote.get("price")
+        vol   = quote.get("volume") or quote.get("avgVolume")
 
-        # pe: from quote (free). volume: use "volume" not "avgVolume" (avgVolume needs paid plan).
-        # roe: from key-metrics-ttm field "roeTTM" (free Basic plan).
+        # --- PE: calculate from price / EPS (free tier) ---
+        pe = quote.get("pe")  # try quote first
+        if pe is None:
+            eps = quote.get("eps")
+            if eps and eps != 0 and price:
+                pe = round(price / eps, 2)
+
+        # --- ROE: calculate from income statement + balance sheet (free tier) ---
+        roe = None
+        try:
+            inc_url = f"https://financialmodelingprep.com/api/v3/income-statement/{symbol}?limit=1&apikey={FMP_API_KEY}"
+            inc_r = requests.get(inc_url, timeout=10).json()
+            bal_url = f"https://financialmodelingprep.com/api/v3/balance-sheet-statement/{symbol}?limit=1&apikey={FMP_API_KEY}"
+            bal_r = requests.get(bal_url, timeout=10).json()
+            if inc_r and isinstance(inc_r, list) and bal_r and isinstance(bal_r, list):
+                net_income = inc_r[0].get("netIncome")
+                equity = bal_r[0].get("totalStockholdersEquity")
+                if net_income and equity and equity != 0:
+                    roe = round((net_income / equity) * 100, 2)
+        except Exception:
+            pass
+
         return {
-            "pe":    quote.get("pe") or profile.get("pe"),
-            "roe":   metrics.get("roeTTM"),
-            "vol":   quote.get("volume") or quote.get("avgVolume"),
+            "pe":    pe,
+            "roe":   roe,
+            "vol":   vol,
             "ind":   profile.get("industry", ""),
             "name":  profile.get("companyName", symbol),
-            "price": quote.get("price"),
+            "price": price,
         }, None
     except Exception as e:
         return None, str(e)
@@ -206,7 +225,7 @@ def get_stock_data(symbol):
 # --- Main Screen Button ---
 if st.button("🔍 Screen Stocks"):
     symbols = all_symbols[:max_stocks]
-    st.info(f"Screening {len(symbols)} stocks from {market}... (3 API calls per stock, rate limited)")
+    st.info(f"Screening {len(symbols)} stocks from {market}... (5 API calls per stock: quote, profile, income, balance sheet, rate limited)")
 
     results = []
     skipped = []
@@ -223,7 +242,7 @@ if st.button("🔍 Screen Stocks"):
                 st.error(f"Debug — First stock ({symbol}) error: {error}")
             skipped.append(symbol)
             progress.progress((i + 1) / len(symbols))
-            time.sleep(0.3)  # rate limit pause
+            time.sleep(0.5)  # rate limit pause
             continue
 
         if i == 0:
@@ -266,7 +285,7 @@ if st.button("🔍 Screen Stocks"):
             skipped.append(symbol)
 
         progress.progress((i + 1) / len(symbols))
-        time.sleep(0.3)  # ~3 calls/sec to stay within free plan limits
+        time.sleep(0.5)  # ~5 calls/stock; pause to stay within free plan limits
 
     status.empty()
     progress.empty()
