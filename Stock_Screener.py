@@ -15,7 +15,7 @@ FMP_BASE = "https://financialmodelingprep.com/api/v3"
 st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
-st.caption("v1.2 — May 19, 2026 — Switched to FMP API for reliable data")
+st.caption("v1.2 — May 19, 2026 — Switched to FMP API for reliable data — Debug mode")
 st.write("Filter stocks based on your investment criteria")
 
 # --- Hardcoded Ticker Lists ---
@@ -173,9 +173,9 @@ def get_stock_data(symbol):
         profile_r = requests.get(profile_url, timeout=10).json()
 
         if not quote_r or not isinstance(quote_r, list) or len(quote_r) == 0:
-            return None
+            return None, f"No quote data: {quote_r}"
         if not profile_r or not isinstance(profile_r, list) or len(profile_r) == 0:
-            return None
+            return None, f"No profile data: {profile_r}"
 
         quote = quote_r[0]
         profile = profile_r[0]
@@ -192,9 +192,9 @@ def get_stock_data(symbol):
             "ind": profile.get("industry", ""),
             "name": profile.get("companyName", symbol),
             "price": quote.get("price", None),
-        }
-    except Exception:
-        return None
+        }, None
+    except Exception as e:
+        return None, str(e)
 
 # --- Main Screen Button ---
 if st.button("🔍 Screen Stocks"):
@@ -209,9 +209,11 @@ if st.button("🔍 Screen Stocks"):
     for i, symbol in enumerate(symbols):
         status.text(f"Checking {symbol} ({i+1}/{len(symbols)})...")
 
-        data = get_stock_data(symbol)
+        data, error = get_stock_data(symbol)
 
         if not data:
+            if i == 0 and error:
+                st.error(f"Debug — First stock error: {error}")
             skipped.append(symbol)
             progress.progress((i + 1) / len(symbols))
             continue
