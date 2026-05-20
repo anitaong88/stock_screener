@@ -15,7 +15,7 @@ FMP_BASE = "https://financialmodelingprep.com/stable"
 st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
-st.caption("v1.2 — May 19, 2026 — Switched to FMP stable API endpoints")
+st.caption("v1.2 — May 19, 2026 — Switched to FMP stable API endpoints — Debug mode v2")
 st.write("Filter stocks based on your investment criteria")
 
 # --- Hardcoded Ticker Lists ---
@@ -212,8 +212,8 @@ if st.button("🔍 Screen Stocks"):
         data, error = get_stock_data(symbol)
 
         if not data:
-            if i == 0 and error:
-                st.error(f"Debug — First stock error: {error}")
+            if i == 0:
+                st.error(f"Debug — First stock ({symbol}) error: {error}")
             skipped.append(symbol)
             progress.progress((i + 1) / len(symbols))
             continue
