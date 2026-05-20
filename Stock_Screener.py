@@ -15,7 +15,7 @@ FMP_BASE = "https://financialmodelingprep.com/stable"
 st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
-st.caption("v1.3 — May 20, 2026 9:52am — Bulk API endpoints (3 calls total instead of 3 per stock)")
+st.caption("v1.4 — May 20, 2026 10:52am — Bulk API endpoints, cache cleared, enhanced debug")
 st.write("Filter stocks based on your investment criteria")
 
 # --- Hardcoded Ticker Lists ---
@@ -162,46 +162,45 @@ def build_docx(df):
     return buf.getvalue()
 
 # --- Helper: Bulk fetch all quotes for a list of symbols (1 API call) ---
-@st.cache_data(ttl=300)
 def fetch_bulk_quotes(symbols_tuple):
     """Fetch quotes for all symbols in one API call using comma-separated list."""
     symbols_str = ",".join(symbols_tuple)
     url = f"{FMP_BASE}/quote?symbol={symbols_str}&apikey={FMP_API_KEY}"
     try:
-        r = requests.get(url, timeout=30).json()
-        if isinstance(r, list):
-            return {item["symbol"]: item for item in r if "symbol" in item}
-        return {}
-    except Exception:
-        return {}
+        r = requests.get(url, timeout=30)
+        data = r.json()
+        if isinstance(data, list):
+            return {item["symbol"]: item for item in data if "symbol" in item}, None
+        return {}, str(data)[:300]
+    except Exception as e:
+        return {}, str(e)
 
 # --- Helper: Bulk fetch all profiles for a list of symbols (1 API call) ---
-@st.cache_data(ttl=3600)
 def fetch_bulk_profiles(symbols_tuple):
     """Fetch profiles for all symbols in one API call."""
     symbols_str = ",".join(symbols_tuple)
     url = f"{FMP_BASE}/profile?symbol={symbols_str}&apikey={FMP_API_KEY}"
     try:
-        r = requests.get(url, timeout=30).json()
-        if isinstance(r, list):
-            return {item["symbol"]: item for item in r if "symbol" in item}
+        r = requests.get(url, timeout=30)
+        data = r.json()
+        if isinstance(data, list):
+            return {item["symbol"]: item for item in data if "symbol" in item}
         return {}
     except Exception:
         return {}
 
 # --- Helper: Bulk fetch ratios-ttm for a list of symbols (1 API call) ---
-@st.cache_data(ttl=3600)
 def fetch_bulk_ratios(symbols_tuple):
     """Fetch TTM ratios for all symbols in one API call."""
     symbols_str = ",".join(symbols_tuple)
     url = f"{FMP_BASE}/ratios-ttm?symbol={symbols_str}&apikey={FMP_API_KEY}"
     try:
-        r = requests.get(url, timeout=30).json()
-        if isinstance(r, list):
-            return {item["symbol"]: item for item in r if "symbol" in item}
-        # Some FMP plans return a dict keyed by symbol
-        if isinstance(r, dict):
-            return r
+        r = requests.get(url, timeout=30)
+        data = r.json()
+        if isinstance(data, list):
+            return {item["symbol"]: item for item in data if "symbol" in item}
+        if isinstance(data, dict):
+            return data
         return {}
     except Exception:
         return {}
@@ -215,17 +214,17 @@ if st.button("🔍 Screen Stocks"):
     skipped = []
 
     with st.spinner("Fetching bulk quotes, profiles, and ratios (3 API calls)..."):
-        symbols_tuple = tuple(symbols)  # hashable for st.cache_data
-        quotes   = fetch_bulk_quotes(symbols_tuple)
+        symbols_tuple = tuple(symbols)
+        quotes, quote_error = fetch_bulk_quotes(symbols_tuple)
         profiles = fetch_bulk_profiles(symbols_tuple)
         ratios   = fetch_bulk_ratios(symbols_tuple)
 
-    # Debug: show what came back for first symbol
-    first = symbols[0] if symbols else None
-    if first:
-        if not quotes:
-            st.error(f"Debug — Bulk quotes returned empty. Possible API limit or key issue.")
-        else:
+    # Debug: show what came back
+    if not quotes:
+        st.error(f"Debug — Bulk quotes returned empty. API response: {quote_error}")
+    else:
+        first = symbols[0] if symbols else None
+        if first:
             q = quotes.get(first, {})
             r = ratios.get(first, {})
             st.warning(
