@@ -1,4 +1,4 @@
-import yfinance as yf
+import requests
 import streamlit as st
 import pandas as pd
 import time
@@ -8,10 +8,14 @@ from docx import Document
 from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
+# --- FMP API Key (stored securely in Streamlit secrets) ---
+FMP_API_KEY = st.secrets["FMP_API_KEY"]
+FMP_BASE = "https://financialmodelingprep.com/api/v3"
+
 st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
-st.caption("v1.1 — May 19, 2026 12:46 AM PST — Added Word Doc export, clickable HTML links")
+st.caption("v1.2 — May 19, 2026 — Switched to FMP API for reliable data")
 st.write("Filter stocks based on your investment criteria")
 
 # --- Hardcoded Ticker Lists ---
@@ -157,6 +161,36 @@ def build_docx(df):
     buf.seek(0)
     return buf.getvalue()
 
+# --- Helper: Fetch stock data from FMP ---
+def get_stock_data(symbol):
+    try:
+        # Get key metrics and profile in one call
+        quote_url = f"{FMP_BASE}/quote/{symbol}?apikey={FMP_API_KEY}"
+        profile_url = f"{FMP_BASE}/profile/{symbol}?apikey={FMP_API_KEY}"
+        metrics_url = f"{FMP_BASE}/key-metrics-ttm/{symbol}?apikey={FMP_API_KEY}"
+
+        quote_r = requests.get(quote_url, timeout=10).json()
+        profile_r = requests.get(profile_url, timeout=10).json()
+        metrics_r = requests.get(metrics_url, timeout=10).json()
+
+        if not quote_r or not profile_r:
+            return None
+
+        quote = quote_r[0]
+        profile = profile_r[0]
+        metrics = metrics_r[0] if metrics_r else {}
+
+        return {
+            "pe": quote.get("pe", None),
+            "roe": metrics.get("roeTTM", None),
+            "vol": quote.get("avgVolume", None),
+            "ind": profile.get("industry", ""),
+            "name": profile.get("companyName", symbol),
+            "price": quote.get("price", None),
+        }
+    except Exception:
+        return None
+
 # --- Main Screen Button ---
 if st.button("🔍 Screen Stocks"):
     symbols = all_symbols[:max_stocks]
@@ -170,40 +204,28 @@ if st.button("🔍 Screen Stocks"):
     for i, symbol in enumerate(symbols):
         status.text(f"Checking {symbol} ({i+1}/{len(symbols)})...")
 
-        info = None
-        # Retry up to 3 times with increasing delay
-        for attempt in range(3):
-            try:
-                stock = yf.Ticker(symbol)
-                info = stock.info
-                if info and info.get("trailingPE") or info.get("returnOnEquity"):
-                    break  # Got valid data, stop retrying
-                else:
-                    time.sleep(1.0 * (attempt + 1))  # Wait longer each retry
-            except Exception:
-                time.sleep(1.0 * (attempt + 1))
+        data = get_stock_data(symbol)
 
-        if not info:
+        if not data:
             skipped.append(symbol)
             progress.progress((i + 1) / len(symbols))
             continue
 
         try:
-            pe = info.get("trailingPE", None)
-            roe = info.get("returnOnEquity", None)
-            vol = info.get("averageVolume", None)
-            ind = info.get("industry", "")
-            name = info.get("longName", symbol)
-            price = info.get("currentPrice", None)
+            pe = data["pe"]
+            roe = data["roe"]
+            vol = data["vol"]
+            ind = data["ind"]
+            name = data["name"]
+            price = data["price"]
 
-            # Skip if no key data available
             if not pe and not roe:
                 skipped.append(symbol)
                 progress.progress((i + 1) / len(symbols))
                 continue
 
             if roe:
-                roe = roe * 100
+                roe = roe * 100  # Convert to percentage
 
             pe_ok = pe and pe <= pe_max
             roe_ok = roe and roe >= roe_min
@@ -223,9 +245,6 @@ if st.button("🔍 Screen Stocks"):
 
         except Exception:
             skipped.append(symbol)
-
-        # Delay between stocks to avoid Yahoo Finance rate limiting
-        time.sleep(1.0)
 
         progress.progress((i + 1) / len(symbols))
 
