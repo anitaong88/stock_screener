@@ -15,7 +15,7 @@ FMP_BASE = "https://financialmodelingprep.com/stable"
 st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
-st.caption("v1.5 — May 20, 2026 11:00am — Per-stock API with rate limiting (free plan compatible)")
+st.caption("v1.6 — May 20, 2026 — Fixed: None/falsy PE & ROE checks causing all stocks to be skipped")
 st.write("Filter stocks based on your investment criteria")
 
 # --- Hardcoded Ticker Lists ---
@@ -227,18 +227,18 @@ if st.button("🔍 Screen Stocks"):
             name  = data["name"]
             price = data["price"]
 
-            if not pe and not roe:
+            if pe is None and roe is None:
                 skipped.append(symbol)
                 progress.progress((i + 1) / len(symbols))
                 time.sleep(0.3)
                 continue
 
-            if roe:
+            if roe is not None:
                 roe = roe * 100
 
-            pe_ok  = pe  and pe  <= pe_max
-            roe_ok = roe and roe >= roe_min
-            vol_ok = vol and vol >= volume_min
+            pe_ok  = pe  is not None and pe  <= pe_max
+            roe_ok = roe is not None and roe >= roe_min
+            vol_ok = vol is not None and vol >= volume_min
             ind_ok = industry.lower() in ind.lower() if industry else True
 
             if pe_ok and roe_ok and vol_ok and ind_ok:
