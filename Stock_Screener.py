@@ -16,14 +16,9 @@ st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
 st.caption(
-    "**v1.7** — May 20, 2026 — Fixed: switched to free-plan compatible FMP endpoints "
-    "(`/api/v3/key-metrics-ttm` for ROE instead of `/ratios-ttm`; `volume` instead of `avgVolume`); "
-    "added PE fallback from profile endpoint  
-"
-    "**v1.6** — May 20, 2026 — Fixed: `not pe` / `not roe` falsy checks skipping stocks with valid zero values; "
-    "replaced with explicit `is None` checks  
-"
-    "**v1.5** — May 20, 2026 — Initial release: per-stock FMP API with rate limiting, free plan compatible"
+    "v1.7 — May 20, 2026 — Fixed: free-plan FMP endpoints (/api/v3/key-metrics-ttm for ROE; volume not avgVolume); PE fallback from profile | "
+    "v1.6 — May 20, 2026 — Fixed: falsy PE/ROE checks (not x) replaced with explicit is None checks | "
+    "v1.5 — May 20, 2026 — Initial release: per-stock FMP API, rate limiting, free plan compatible"
 )
 st.write("Filter stocks based on your investment criteria")
 
