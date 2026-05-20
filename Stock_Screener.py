@@ -16,9 +16,10 @@ st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
 st.caption(
-    "v1.8 — May 20, 2026 — Fixed: PE/ROE both None; now calculated from free endpoints (PE=price/EPS, ROE=netIncome/equity via income+balance sheet) | "
-    "v1.7 — May 20, 2026 — Fixed: free-plan FMP endpoints (key-metrics-ttm for ROE; volume not avgVolume); PE fallback from profile | "
-    "v1.6 — May 20, 2026 — Fixed: falsy PE/ROE checks (not x) replaced with explicit is None checks | "
+    "v1.9 — May 20, 2026 — Added: FMP API Data Checker shows all raw fields per endpoint for your plan tier | "
+    "v1.8 — May 20, 2026 — Fixed: PE/ROE calculated from free endpoints (PE=price/EPS, ROE=netIncome/equity) | "
+    "v1.7 — May 20, 2026 — Fixed: switched to free-plan FMP endpoints (key-metrics-ttm, volume not avgVolume) | "
+    "v1.6 — May 20, 2026 — Fixed: falsy PE/ROE checks replaced with explicit is None checks | "
     "v1.5 — May 20, 2026 — Initial release: per-stock FMP API, rate limiting, free plan compatible"
 )
 st.write("Filter stocks based on your investment criteria")
@@ -218,9 +219,57 @@ def get_stock_data(symbol):
             "ind":   profile.get("industry", ""),
             "name":  profile.get("companyName", symbol),
             "price": price,
+            "_quote_keys": list(quote.keys()),
+            "_inc_sample": inc_r[0] if 'inc_r' in dir() and inc_r and isinstance(inc_r, list) else {},
         }, None
     except Exception as e:
         return None, str(e)
+
+# --- API Data Checker ---
+st.markdown("---")
+st.markdown("#### 🔬 FMP API Data Checker")
+st.caption("Pick a ticker and see exactly what your FMP plan returns — no filters applied.")
+
+col_a, col_b = st.columns([1, 3])
+with col_a:
+    check_symbol = st.text_input("Ticker", value="AAPL").upper().strip()
+with col_b:
+    st.write("")  # spacer
+
+if st.button("🔍 Check API Data"):
+    endpoints = {
+        "Quote (/stable/quote)": f"{FMP_BASE}/quote?symbol={check_symbol}&apikey={FMP_API_KEY}",
+        "Profile (/stable/profile)": f"{FMP_BASE}/profile?symbol={check_symbol}&apikey={FMP_API_KEY}",
+        "Income Statement (v3)": f"https://financialmodelingprep.com/api/v3/income-statement/{check_symbol}?limit=1&apikey={FMP_API_KEY}",
+        "Balance Sheet (v3)": f"https://financialmodelingprep.com/api/v3/balance-sheet-statement/{check_symbol}?limit=1&apikey={FMP_API_KEY}",
+        "Key Metrics TTM (v3)": f"https://financialmodelingprep.com/api/v3/key-metrics-ttm/{check_symbol}?apikey={FMP_API_KEY}",
+        "Ratios TTM (v3)": f"https://financialmodelingprep.com/api/v3/ratios-ttm/{check_symbol}?apikey={FMP_API_KEY}",
+    }
+
+    for label, url in endpoints.items():
+        with st.expander(f"📡 {label}", expanded=True):
+            try:
+                r = requests.get(url, timeout=10).json()
+                if isinstance(r, list) and len(r) > 0:
+                    row = r[0]
+                    # Show as a clean table: field | value, highlight non-None values
+                    rows = [(k, v) for k, v in row.items()]
+                    df_raw = pd.DataFrame(rows, columns=["Field", "Value"])
+                    df_raw["Available"] = df_raw["Value"].apply(lambda v: "✅" if v is not None and v != "" and v != 0 else "❌")
+                    st.dataframe(df_raw, hide_index=True, use_container_width=True)
+                elif isinstance(r, dict) and r.get("Error Message"):
+                    st.error(f"API error: {r['Error Message']}")
+                elif isinstance(r, dict):
+                    st.json(r)
+                else:
+                    st.warning(f"Empty or unexpected response: {str(r)[:300]}")
+            except Exception as e:
+                st.error(f"Request failed: {e}")
+        time.sleep(0.3)
+
+st.markdown("---")
+st.markdown("#### 🔍 Screen Stocks")
+st.caption("Once you've confirmed which fields are available above, use the screener below.")
 
 # --- Main Screen Button ---
 if st.button("🔍 Screen Stocks"):
@@ -242,11 +291,8 @@ if st.button("🔍 Screen Stocks"):
                 st.error(f"Debug — First stock ({symbol}) error: {error}")
             skipped.append(symbol)
             progress.progress((i + 1) / len(symbols))
-            time.sleep(0.5)  # rate limit pause
+            time.sleep(0.5)
             continue
-
-        if i == 0:
-            st.warning(f"Debug — {symbol}: PE={data['pe']}, ROE={data['roe']}, Vol={data['vol']}, Industry={data['ind']}")
 
         try:
             pe    = data["pe"]
@@ -261,9 +307,6 @@ if st.button("🔍 Screen Stocks"):
                 progress.progress((i + 1) / len(symbols))
                 time.sleep(0.3)
                 continue
-
-            if roe is not None:
-                roe = roe * 100
 
             pe_ok  = pe  is not None and pe  <= pe_max
             roe_ok = roe is not None and roe >= roe_min
@@ -285,7 +328,7 @@ if st.button("🔍 Screen Stocks"):
             skipped.append(symbol)
 
         progress.progress((i + 1) / len(symbols))
-        time.sleep(0.5)  # ~5 calls/stock; pause to stay within free plan limits
+        time.sleep(0.5)
 
     status.empty()
     progress.empty()
@@ -294,7 +337,6 @@ if st.button("🔍 Screen Stocks"):
         st.success(f"✅ Found {len(results)} matching stocks from {market}!")
         df = pd.DataFrame(results)
 
-        # Add Yahoo Finance URL column for clickable links
         df["Yahoo Finance"] = df["Symbol"].apply(
             lambda s: f"https://finance.yahoo.com/quote/{s}"
         )
@@ -311,13 +353,11 @@ if st.button("🔍 Screen Stocks"):
             hide_index=True,
         )
 
-        # --- Download Options ---
         st.markdown("### 📥 Download Results")
         st.caption("Choose the format that works best for you:")
 
         col1, col2, col3, col4 = st.columns(4)
 
-        # 1. CSV download
         csv = df.to_csv(index=False)
         with col1:
             st.download_button(
@@ -329,7 +369,6 @@ if st.button("🔍 Screen Stocks"):
             )
             st.caption("Works everywhere — Excel, Google Sheets, Numbers, Notepad")
 
-        # 2. HTML download
         html = build_html(df)
         with col2:
             st.download_button(
@@ -341,7 +380,6 @@ if st.button("🔍 Screen Stocks"):
             )
             st.caption("Clickable links — opens in any web browser")
 
-        # 3. Word Doc download
         docx_bytes = build_docx(df)
         with col3:
             st.download_button(
@@ -353,7 +391,6 @@ if st.button("🔍 Screen Stocks"):
             )
             st.caption("Opens in Word, Google Docs, or LibreOffice")
 
-        # 4. Google Sheets link
         with col4:
             st.markdown(
                 """<a href="https://sheets.new" target="_blank">
