@@ -164,25 +164,30 @@ def build_docx(df):
 # --- Helper: Fetch stock data from FMP ---
 def get_stock_data(symbol):
     try:
-        # Get key metrics and profile in one call
+        # Quote endpoint — free tier
         quote_url = f"{FMP_BASE}/quote/{symbol}?apikey={FMP_API_KEY}"
-        profile_url = f"{FMP_BASE}/profile/{symbol}?apikey={FMP_API_KEY}"
-        metrics_url = f"{FMP_BASE}/key-metrics-ttm/{symbol}?apikey={FMP_API_KEY}"
-
         quote_r = requests.get(quote_url, timeout=10).json()
-        profile_r = requests.get(profile_url, timeout=10).json()
-        metrics_r = requests.get(metrics_url, timeout=10).json()
 
-        if not quote_r or not profile_r:
+        # Profile endpoint — free tier
+        profile_url = f"{FMP_BASE}/profile/{symbol}?apikey={FMP_API_KEY}"
+        profile_r = requests.get(profile_url, timeout=10).json()
+
+        if not quote_r or not isinstance(quote_r, list) or len(quote_r) == 0:
+            return None
+        if not profile_r or not isinstance(profile_r, list) or len(profile_r) == 0:
             return None
 
         quote = quote_r[0]
         profile = profile_r[0]
-        metrics = metrics_r[0] if metrics_r else {}
+
+        # ROE comes from ratios endpoint — free tier
+        ratios_url = f"{FMP_BASE}/ratios-ttm/{symbol}?apikey={FMP_API_KEY}"
+        ratios_r = requests.get(ratios_url, timeout=10).json()
+        ratios = ratios_r[0] if ratios_r and isinstance(ratios_r, list) and len(ratios_r) > 0 else {}
 
         return {
             "pe": quote.get("pe", None),
-            "roe": metrics.get("roeTTM", None),
+            "roe": ratios.get("returnOnEquityTTM", None),
             "vol": quote.get("avgVolume", None),
             "ind": profile.get("industry", ""),
             "name": profile.get("companyName", symbol),
