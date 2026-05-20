@@ -15,7 +15,7 @@ FMP_BASE = "https://financialmodelingprep.com/stable"
 st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
-st.caption("v1.4 — May 20, 2026 10:52am — Bulk API endpoints, cache cleared, enhanced debug")
+st.caption("v1.5 — May 20, 2026 11:00am — Per-stock API with rate limiting (free plan compatible)")
 st.write("Filter stocks based on your investment criteria")
 
 # --- Hardcoded Ticker Lists ---
@@ -161,109 +161,80 @@ def build_docx(df):
     buf.seek(0)
     return buf.getvalue()
 
-# --- Helper: Bulk fetch all quotes for a list of symbols (1 API call) ---
-def fetch_bulk_quotes(symbols_tuple):
-    """Fetch quotes for all symbols in one API call using comma-separated list."""
-    symbols_str = ",".join(symbols_tuple)
-    url = f"{FMP_BASE}/quote?symbol={symbols_str}&apikey={FMP_API_KEY}"
+# --- Helper: Fetch stock data per symbol (free plan compatible) ---
+def get_stock_data(symbol):
     try:
-        r = requests.get(url, timeout=30)
-        data = r.json()
-        if isinstance(data, list):
-            return {item["symbol"]: item for item in data if "symbol" in item}, None
-        return {}, str(data)[:300]
+        quote_url = f"{FMP_BASE}/quote?symbol={symbol}&apikey={FMP_API_KEY}"
+        quote_r = requests.get(quote_url, timeout=10).json()
+
+        profile_url = f"{FMP_BASE}/profile?symbol={symbol}&apikey={FMP_API_KEY}"
+        profile_r = requests.get(profile_url, timeout=10).json()
+
+        if not quote_r or not isinstance(quote_r, list) or len(quote_r) == 0:
+            return None, f"No quote data: {str(quote_r)[:200]}"
+        if not profile_r or not isinstance(profile_r, list) or len(profile_r) == 0:
+            return None, f"No profile data: {str(profile_r)[:200]}"
+
+        quote   = quote_r[0]
+        profile = profile_r[0]
+
+        ratios_url = f"{FMP_BASE}/ratios-ttm?symbol={symbol}&apikey={FMP_API_KEY}"
+        ratios_r = requests.get(ratios_url, timeout=10).json()
+        ratios = ratios_r[0] if ratios_r and isinstance(ratios_r, list) and len(ratios_r) > 0 else {}
+
+        return {
+            "pe":    quote.get("pe", None),
+            "roe":   ratios.get("returnOnEquityTTM", None),
+            "vol":   quote.get("avgVolume", None),
+            "ind":   profile.get("industry", ""),
+            "name":  profile.get("companyName", symbol),
+            "price": quote.get("price", None),
+        }, None
     except Exception as e:
-        return {}, str(e)
-
-# --- Helper: Bulk fetch all profiles for a list of symbols (1 API call) ---
-def fetch_bulk_profiles(symbols_tuple):
-    """Fetch profiles for all symbols in one API call."""
-    symbols_str = ",".join(symbols_tuple)
-    url = f"{FMP_BASE}/profile?symbol={symbols_str}&apikey={FMP_API_KEY}"
-    try:
-        r = requests.get(url, timeout=30)
-        data = r.json()
-        if isinstance(data, list):
-            return {item["symbol"]: item for item in data if "symbol" in item}
-        return {}
-    except Exception:
-        return {}
-
-# --- Helper: Bulk fetch ratios-ttm for a list of symbols (1 API call) ---
-def fetch_bulk_ratios(symbols_tuple):
-    """Fetch TTM ratios for all symbols in one API call."""
-    symbols_str = ",".join(symbols_tuple)
-    url = f"{FMP_BASE}/ratios-ttm?symbol={symbols_str}&apikey={FMP_API_KEY}"
-    try:
-        r = requests.get(url, timeout=30)
-        data = r.json()
-        if isinstance(data, list):
-            return {item["symbol"]: item for item in data if "symbol" in item}
-        if isinstance(data, dict):
-            return data
-        return {}
-    except Exception:
-        return {}
+        return None, str(e)
 
 # --- Main Screen Button ---
 if st.button("🔍 Screen Stocks"):
     symbols = all_symbols[:max_stocks]
-    st.info(f"Screening {len(symbols)} stocks from {market}... (3 API calls total)")
+    st.info(f"Screening {len(symbols)} stocks from {market}... (3 API calls per stock, rate limited)")
 
     results = []
     skipped = []
-
-    with st.spinner("Fetching bulk quotes, profiles, and ratios (3 API calls)..."):
-        symbols_tuple = tuple(symbols)
-        quotes, quote_error = fetch_bulk_quotes(symbols_tuple)
-        profiles = fetch_bulk_profiles(symbols_tuple)
-        ratios   = fetch_bulk_ratios(symbols_tuple)
-
-    # Debug: show what came back
-    if not quotes:
-        st.error(f"Debug — Bulk quotes returned empty. API response: {quote_error}")
-    else:
-        first = symbols[0] if symbols else None
-        if first:
-            q = quotes.get(first, {})
-            r = ratios.get(first, {})
-            st.warning(
-                f"Debug — {first}: PE={q.get('pe')}, "
-                f"ROE={r.get('returnOnEquityTTM')}, "
-                f"Vol={q.get('avgVolume')}, "
-                f"Industry={profiles.get(first, {}).get('industry', 'N/A')}"
-            )
-
     progress = st.progress(0)
     status = st.empty()
 
     for i, symbol in enumerate(symbols):
-        status.text(f"Filtering {symbol} ({i+1}/{len(symbols)})...")
+        status.text(f"Checking {symbol} ({i+1}/{len(symbols)})...")
 
-        quote   = quotes.get(symbol, {})
-        profile = profiles.get(symbol, {})
-        ratio   = ratios.get(symbol, {})
+        data, error = get_stock_data(symbol)
 
-        if not quote and not profile:
+        if not data:
+            if i == 0:
+                st.error(f"Debug — First stock ({symbol}) error: {error}")
             skipped.append(symbol)
             progress.progress((i + 1) / len(symbols))
+            time.sleep(0.3)  # rate limit pause
             continue
 
+        if i == 0:
+            st.warning(f"Debug — {symbol}: PE={data['pe']}, ROE={data['roe']}, Vol={data['vol']}, Industry={data['ind']}")
+
         try:
-            pe    = quote.get("pe", None)
-            roe   = ratio.get("returnOnEquityTTM", None)
-            vol   = quote.get("avgVolume", None)
-            ind   = profile.get("industry", "")
-            name  = profile.get("companyName", symbol)
-            price = quote.get("price", None)
+            pe    = data["pe"]
+            roe   = data["roe"]
+            vol   = data["vol"]
+            ind   = data["ind"]
+            name  = data["name"]
+            price = data["price"]
 
             if not pe and not roe:
                 skipped.append(symbol)
                 progress.progress((i + 1) / len(symbols))
+                time.sleep(0.3)
                 continue
 
             if roe:
-                roe = roe * 100  # Convert to percentage
+                roe = roe * 100
 
             pe_ok  = pe  and pe  <= pe_max
             roe_ok = roe and roe >= roe_min
@@ -272,19 +243,20 @@ if st.button("🔍 Screen Stocks"):
 
             if pe_ok and roe_ok and vol_ok and ind_ok:
                 results.append({
-                    "Symbol":   symbol,
-                    "Company":  name,
-                    "Price":    f"${price:.2f}" if price else "N/A",
-                    "PE Ratio": f"{pe:.2f}"     if pe    else "N/A",
-                    "ROE (%)":  f"{roe:.2f}"    if roe   else "N/A",
-                    "Avg Volume": f"{vol:,}"    if vol   else "N/A",
-                    "Industry": ind,
+                    "Symbol":     symbol,
+                    "Company":    name,
+                    "Price":      f"${price:.2f}" if price else "N/A",
+                    "PE Ratio":   f"{pe:.2f}"     if pe    else "N/A",
+                    "ROE (%)":    f"{roe:.2f}"    if roe   else "N/A",
+                    "Avg Volume": f"{vol:,}"       if vol   else "N/A",
+                    "Industry":   ind,
                 })
 
         except Exception:
             skipped.append(symbol)
 
         progress.progress((i + 1) / len(symbols))
+        time.sleep(0.3)  # ~3 calls/sec to stay within free plan limits
 
     status.empty()
     progress.empty()
