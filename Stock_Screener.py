@@ -10,12 +10,12 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 # --- FMP API Key (stored securely in Streamlit secrets) ---
 FMP_API_KEY = st.secrets["FMP_API_KEY"]
-FMP_BASE = "https://financialmodelingprep.com/api/v3"
+FMP_BASE = "https://financialmodelingprep.com/stable"
 
 st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
-st.caption("v1.2 — May 19, 2026 — Switched to FMP API for reliable data — Debug mode")
+st.caption("v1.2 — May 19, 2026 — Switched to FMP stable API endpoints")
 st.write("Filter stocks based on your investment criteria")
 
 # --- Hardcoded Ticker Lists ---
@@ -164,24 +164,24 @@ def build_docx(df):
 # --- Helper: Fetch stock data from FMP ---
 def get_stock_data(symbol):
     try:
-        # Quote endpoint — free tier
-        quote_url = f"{FMP_BASE}/quote/{symbol}?apikey={FMP_API_KEY}"
+        # New stable quote endpoint
+        quote_url = f"{FMP_BASE}/quote?symbol={symbol}&apikey={FMP_API_KEY}"
         quote_r = requests.get(quote_url, timeout=10).json()
 
-        # Profile endpoint — free tier
-        profile_url = f"{FMP_BASE}/profile/{symbol}?apikey={FMP_API_KEY}"
+        # New stable profile endpoint
+        profile_url = f"{FMP_BASE}/profile?symbol={symbol}&apikey={FMP_API_KEY}"
         profile_r = requests.get(profile_url, timeout=10).json()
 
         if not quote_r or not isinstance(quote_r, list) or len(quote_r) == 0:
-            return None, f"No quote data: {quote_r}"
+            return None, f"No quote data: {str(quote_r)[:200]}"
         if not profile_r or not isinstance(profile_r, list) or len(profile_r) == 0:
-            return None, f"No profile data: {profile_r}"
+            return None, f"No profile data: {str(profile_r)[:200]}"
 
         quote = quote_r[0]
         profile = profile_r[0]
 
-        # ROE comes from ratios endpoint — free tier
-        ratios_url = f"{FMP_BASE}/ratios-ttm/{symbol}?apikey={FMP_API_KEY}"
+        # Ratios TTM endpoint
+        ratios_url = f"{FMP_BASE}/ratios-ttm?symbol={symbol}&apikey={FMP_API_KEY}"
         ratios_r = requests.get(ratios_url, timeout=10).json()
         ratios = ratios_r[0] if ratios_r and isinstance(ratios_r, list) and len(ratios_r) > 0 else {}
 
