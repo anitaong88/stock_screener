@@ -15,7 +15,7 @@ st.caption(
     "v2.0 — Jun 2026 — Fixed FMP endpoints | "
     "v1.9 — May 2026 — Initial release"
 )
-st.write("Filter stocks based on your investment criteria")
+st.write("Filter stocks based on your investment criteria on the panel on the left")
 
 # --- Hardcoded Ticker Lists ---
 TICKERS = {
