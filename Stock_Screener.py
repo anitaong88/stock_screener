@@ -12,6 +12,7 @@ st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
 st.caption(
+    "v4.1 — Jun 2026 — Fixed Senate Stock Watcher URL (switched to GitHub raw data) | "
     "v4.0 — Jun 2026 — Added Congressional Trading Tracker | "
     "v3.0 — Jun 2026 — Switched to Yahoo Finance (free, no API key needed, no daily limits) | "
     "v2.0 — Jun 2026 — Fixed FMP endpoints | "
@@ -286,7 +287,7 @@ elif page == "🏛️ Congressional Trading":
         else:
             with st.spinner(f"Searching Senate trading records for {ticker_input}…"):
                 try:
-                    url = "https://senate-stock-watcher-data.celp.workers.dev/aggregate/all_ticker_transactions.json"
+                    url = "https://raw.githubusercontent.com/timothycarambat/senate-stock-watcher-data/master/aggregate/all_ticker_transactions.json"
                     response = requests.get(url, timeout=20)
 
                     if response.status_code != 200:
