@@ -295,14 +295,14 @@ elif page == "🏛️ Congressional Trading":
                     else:
                         data = response.json()
 
-                        # Find the ticker in the data (case insensitive)
-                        trades = None
-                        for key in data:
-                            if key.upper() == ticker_input:
-                                trades = data[key]
+                        # Data is a list of objects each with 'ticker' and 'transactions'
+                        ticker_group = None
+                        for item in data:
+                            if isinstance(item, dict) and item.get("ticker", "").upper() == ticker_input:
+                                ticker_group = item
                                 break
 
-                        if not trades:
+                        if not ticker_group:
                             st.warning(
                                 f"No Senate trading records found for **{ticker_input}**. "
                                 f"This could mean no Senator has traded this stock, or the ticker is not in the database. "
@@ -310,30 +310,24 @@ elif page == "🏛️ Congressional Trading":
                             )
                         else:
                             results = []
-                            for trade in trades:
-                                first  = trade.get("first_name", "")
-                                last   = trade.get("last_name", "")
-                                name   = f"{first} {last}".strip()
-                                office = trade.get("office", "Senator")
+                            for tx in ticker_group.get("transactions", []):
+                                tx_date  = tx.get("transaction_date", "N/A")
+                                tx_type  = tx.get("type", "N/A")
+                                amount   = tx.get("amount", "N/A")
+                                asset    = tx.get("asset_description", ticker_input)
+                                owner    = tx.get("owner", "Self")
+                                senator  = tx.get("senator", "N/A")
+                                ptr_link = tx.get("ptr_link", "")
 
-                                for tx in trade.get("transactions", []):
-                                    tx_date  = tx.get("transaction_date", "N/A")
-                                    tx_type  = tx.get("type", "N/A")
-                                    amount   = tx.get("amount", "N/A")
-                                    asset    = tx.get("asset_description", ticker_input)
-                                    owner    = tx.get("owner", "Self")
-                                    ptr_link = trade.get("ptr_link", "")
-
-                                    results.append({
-                                        "Senator":         name,
-                                        "Office":          office,
-                                        "Trade Date":      tx_date,
-                                        "Transaction":     tx_type,
-                                        "Amount Range":    amount,
-                                        "Asset":           asset,
-                                        "Owner":           owner,
-                                        "Official Filing": ptr_link,
-                                    })
+                                results.append({
+                                    "Senator":         senator,
+                                    "Trade Date":      tx_date,
+                                    "Transaction":     tx_type,
+                                    "Amount Range":    amount,
+                                    "Asset":           asset,
+                                    "Owner":           owner,
+                                    "Official Filing": ptr_link,
+                                })
 
                             if results:
                                 df = pd.DataFrame(results)
