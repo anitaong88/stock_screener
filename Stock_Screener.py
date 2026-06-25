@@ -15,7 +15,7 @@ st.markdown("### Anita's Stock Screener")
 # --- Version history hidden behind expander (Fix #2) ---
 with st.expander("ℹ️ Version History", expanded=False):
     st.caption(
-        "v5.0 — Jun 2026 — Removed Google Sheets button | Hidden version history | "
+        "v5.1 — Jun 2026 — Fixed Capitol Trades URL | v5.0 — Jun 2026 — Removed Google Sheets button | Hidden version history | "
         "Switched Congressional Trading to Senate eFD live search (current 2024-2026 data) | "
         "v4.2 — Jun 2026 — Fixed Senate data parsing (list structure vs dict) | "
         "v4.1 — Jun 2026 — Fixed Senate Stock Watcher URL | "
@@ -365,7 +365,7 @@ elif page == "🏛️ Congressional Trading":
                                     st.caption("Opens in Excel or Google Sheets")
                                 with col2:
                                     st.markdown(
-                                        f'<a href="https://www.capitoltrades.com/trades?asset={ticker_input}" target="_blank">'
+                                        f'<a href="https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}" target="_blank">'
                                         f'<button style="background-color:#1a73e8;color:white;border:none;padding:8px 16px;'
                                         f'border-radius:4px;cursor:pointer;font-size:14px;width:100%">'
                                         f'🏛️ More on Capitol Trades</button></a>',
@@ -376,7 +376,7 @@ elif page == "🏛️ Congressional Trading":
                                 st.warning(f"No matching trades found in the Senate filings for **{ticker_input}**.")
                                 st.markdown(
                                     f"Try searching directly on "
-                                    f"[Capitol Trades](https://www.capitoltrades.com/trades?asset={ticker_input}) "
+                                    f"[Capitol Trades](https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}) "
                                     f"which covers both Senate and House trades."
                                 )
                         else:
@@ -384,7 +384,7 @@ elif page == "🏛️ Congressional Trading":
                             st.warning(f"No Senate filings found for **{ticker_input}** in our search.")
                             st.markdown(
                                 f"**Try these free sources directly:**\n\n"
-                                f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/trades?asset={ticker_input}) — Senate + House trades, updated daily\n"
+                                f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}) — Senate + House trades, updated daily\n"
                                 f"- 📋 [Senate eFD Search](https://efdsearch.senate.gov/search/?q={ticker_input}) — Official Senate filings\n"
                                 f"- 📋 [House Disclosures](https://disclosures-clerk.house.gov/FinancialDisclosure) — Official House filings"
                             )
@@ -393,17 +393,17 @@ elif page == "🏛️ Congressional Trading":
                         st.warning("Could not connect to Senate filing system. Please use the links below:")
                         st.markdown(
                             f"**Search these free sources directly:**\n\n"
-                            f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/trades?asset={ticker_input}) — Senate + House trades, updated daily\n"
+                            f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}) — Senate + House trades, updated daily\n"
                             f"- 📋 [Senate eFD Search](https://efdsearch.senate.gov/search/?q={ticker_input}) — Official Senate filings"
                         )
 
                 except requests.exceptions.Timeout:
                     st.error("The request timed out. Please try the links below:")
-                    st.markdown(f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/trades?asset={ticker_input})")
+                    st.markdown(f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/issuers?issuerTicker={ticker_input})")
                 except Exception as e:
                     st.warning(f"Search unavailable. Please use these free sources:")
                     st.markdown(
-                        f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/trades?asset={ticker_input}) — Senate + House trades, updated daily\n"
+                        f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}) — Senate + House trades, updated daily\n"
                         f"- 📋 [Senate eFD Search](https://efdsearch.senate.gov/search/?q={ticker_input}) — Official Senate filings"
                     )
 
