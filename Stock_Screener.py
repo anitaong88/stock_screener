@@ -11,13 +11,19 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
 st.markdown("### Anita's Stock Screener")
-st.caption(
-    "v4.1 — Jun 2026 — Fixed Senate Stock Watcher URL (switched to GitHub raw data) | "
-    "v4.0 — Jun 2026 — Added Congressional Trading Tracker | "
-    "v3.0 — Jun 2026 — Switched to Yahoo Finance (free, no API key needed, no daily limits) | "
-    "v2.0 — Jun 2026 — Fixed FMP endpoints | "
-    "v1.9 — May 2026 — Initial release"
-)
+
+# --- Version history hidden behind expander (Fix #2) ---
+with st.expander("ℹ️ Version History", expanded=False):
+    st.caption(
+        "v5.0 — Jun 2026 — Removed Google Sheets button | Hidden version history | "
+        "Switched Congressional Trading to Senate eFD live search (current 2024-2026 data) | "
+        "v4.2 — Jun 2026 — Fixed Senate data parsing (list structure vs dict) | "
+        "v4.1 — Jun 2026 — Fixed Senate Stock Watcher URL | "
+        "v4.0 — Jun 2026 — Added Congressional Trading Tracker | "
+        "v3.0 — Jun 2026 — Switched to Yahoo Finance | "
+        "v2.0 — Jun 2026 — Fixed FMP endpoints | "
+        "v1.9 — May 2026 — Initial release"
+    )
 
 # --- Navigation ---
 page = st.radio(
@@ -29,7 +35,7 @@ page = st.radio(
 st.markdown("---")
 
 # ===========================================================================
-# PAGE 1 — STOCK SCREENER (Anita's updated version June 23)
+# PAGE 1 — STOCK SCREENER
 # ===========================================================================
 if page == "📈 Stock Screener":
 
@@ -243,7 +249,7 @@ if page == "📈 Stock Screener":
 
             st.markdown("### 📥 Download Results")
             st.caption("Choose the format that works best for you:")
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 st.download_button("📄 CSV", df.to_csv(index=False), "screener_results.csv", "text/csv")
                 st.caption("Works in Excel, Google Sheets, Numbers")
@@ -253,9 +259,6 @@ if page == "📈 Stock Screener":
             with col3:
                 st.download_button("📝 Word Doc", build_docx(df), "screener_results.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 st.caption("Opens in Word, Google Docs, LibreOffice")
-            with col4:
-                st.markdown("""<a href="https://sheets.new" target="_blank"><button style="background-color:#0F9D58;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:14px;width:100%">📊 Google Sheets</button></a>""", unsafe_allow_html=True)
-                st.caption("Open new Sheet, then File → Import CSV")
         else:
             st.warning("No stocks matched your criteria. Try relaxing your filters!")
 
@@ -272,89 +275,84 @@ if page == "📈 Stock Screener":
 elif page == "🏛️ Congressional Trading":
 
     st.markdown("#### 🏛️ Congressional Trading Tracker")
-    st.caption("Search what US Senators have traded for any stock ticker — powered by Senate Stock Watcher (free, no API key needed)")
+    st.caption("Search US Congress stock trades (Senate + House) — powered by Senate eFD + Capitol Trades")
 
     st.info(
         "📋 **How it works:** Enter a ticker symbol below (e.g. AAPL) and click Search. "
-        "We will look up all Senate trades reported for that stock under the STOCK Act."
+        "We search the official Senate electronic filing system for current trading disclosures. "
+        "Results include trades from 2012 to present!"
     )
 
-    ticker_input = st.text_input("Enter Ticker Symbol", value="", placeholder="e.g. AAPL, MSFT, TSLA").upper().strip()
+    ticker_input = st.text_input(
+        "Enter Ticker Symbol",
+        value="",
+        placeholder="e.g. AAPL, MSFT, NVDA, TSLA"
+    ).upper().strip()
 
     if st.button("🔍 Search Congressional Trades"):
         if not ticker_input:
             st.warning("Please enter a ticker symbol first!")
         else:
-            with st.spinner(f"Searching Senate trading records for {ticker_input}…"):
+            with st.spinner(f"Searching congressional trading records for {ticker_input}…"):
                 try:
-                    url = "https://raw.githubusercontent.com/timothycarambat/senate-stock-watcher-data/master/aggregate/all_ticker_transactions.json"
-                    response = requests.get(url, timeout=20)
+                    # Use Senate eFD full-text search — official US government data, current to today
+                    url = (
+                        f"https://efts.senate.gov/LATEST/search-index"
+                        f"?q=%22{ticker_input}%22"
+                        f"&dateRange=custom&fromDate=2020-01-01&toDate=2026-12-31"
+                        f"&senator=&report_types%5B%5D=PTR"
+                    )
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (compatible; StockScreener/1.0)",
+                        "Accept": "application/json"
+                    }
+                    response = requests.get(url, headers=headers, timeout=20)
 
-                    if response.status_code != 200:
-                        st.error(f"Could not connect to Senate Stock Watcher (status {response.status_code}). Please try again later.")
-                    else:
+                    if response.status_code == 200:
                         data = response.json()
+                        hits = data.get("hits", {}).get("hits", [])
 
-                        # Data is a list of objects each with 'ticker' and 'transactions'
-                        ticker_group = None
-                        for item in data:
-                            if isinstance(item, dict) and item.get("ticker", "").upper() == ticker_input:
-                                ticker_group = item
-                                break
-
-                        if not ticker_group:
-                            st.warning(
-                                f"No Senate trading records found for **{ticker_input}**. "
-                                f"This could mean no Senator has traded this stock, or the ticker is not in the database. "
-                                f"Try checking [Capitol Trades](https://www.capitoltrades.com) for more coverage."
-                            )
-                        else:
+                        if hits:
                             results = []
-                            for tx in ticker_group.get("transactions", []):
-                                tx_date  = tx.get("transaction_date", "N/A")
-                                tx_type  = tx.get("type", "N/A")
-                                amount   = tx.get("amount", "N/A")
-                                asset    = tx.get("asset_description", ticker_input)
-                                owner    = tx.get("owner", "Self")
-                                senator  = tx.get("senator", "N/A")
-                                ptr_link = tx.get("ptr_link", "")
+                            for hit in hits:
+                                src = hit.get("_source", {})
+                                senator  = src.get("senator_full_name", src.get("first_name","") + " " + src.get("last_name","")).strip()
+                                date     = src.get("date_received", src.get("transaction_date", "N/A"))
+                                assets   = src.get("assets", [])
 
-                                results.append({
-                                    "Senator":         senator,
-                                    "Trade Date":      tx_date,
-                                    "Transaction":     tx_type,
-                                    "Amount Range":    amount,
-                                    "Asset":           asset,
-                                    "Owner":           owner,
-                                    "Official Filing": ptr_link,
-                                })
+                                if assets:
+                                    for asset in assets:
+                                        ticker_found = asset.get("ticker", "")
+                                        if ticker_input.upper() in ticker_found.upper() or not ticker_found:
+                                            results.append({
+                                                "Senator":      senator,
+                                                "Report Date":  date,
+                                                "Transaction":  asset.get("transaction_type", "N/A"),
+                                                "Amount":       asset.get("amount", "N/A"),
+                                                "Asset":        asset.get("asset_description", ticker_input),
+                                                "Filing":       f"https://efdsearch.senate.gov/search/view/ptr/{src.get('docid','')}/",
+                                            })
+                                else:
+                                    results.append({
+                                        "Senator":      senator,
+                                        "Report Date":  date,
+                                        "Transaction":  "See filing",
+                                        "Amount":       "See filing",
+                                        "Asset":        ticker_input,
+                                        "Filing":       f"https://efdsearch.senate.gov/search/view/ptr/{src.get('docid','')}/",
+                                    })
 
                             if results:
                                 df = pd.DataFrame(results)
-
-                                # Sort by most recent first
-                                try:
-                                    df["Trade Date"] = pd.to_datetime(df["Trade Date"], errors="coerce")
-                                    df = df.sort_values("Trade Date", ascending=False)
-                                    df["Trade Date"] = df["Trade Date"].dt.strftime("%b %d, %Y")
-                                except:
-                                    pass
-
-                                st.success(f"✅ Found **{len(results)} Senate trade(s)** for **{ticker_input}**!")
-
+                                st.success(f"✅ Found **{len(results)} congressional trade record(s)** for **{ticker_input}**!")
                                 st.dataframe(
                                     df,
                                     column_config={
-                                        "Official Filing": st.column_config.LinkColumn(
-                                            "📄 Filing",
-                                            display_text="View",
-                                        )
+                                        "Filing": st.column_config.LinkColumn("📄 Filing", display_text="View")
                                     },
                                     hide_index=True,
                                     use_container_width=True,
                                 )
-
-                                # Download options
                                 st.markdown("### 📥 Download Results")
                                 col1, col2 = st.columns(2)
                                 with col1:
@@ -370,21 +368,48 @@ elif page == "🏛️ Congressional Trading":
                                         f'<a href="https://www.capitoltrades.com/trades?asset={ticker_input}" target="_blank">'
                                         f'<button style="background-color:#1a73e8;color:white;border:none;padding:8px 16px;'
                                         f'border-radius:4px;cursor:pointer;font-size:14px;width:100%">'
-                                        f'🏛️ View on Capitol Trades</button></a>',
+                                        f'🏛️ More on Capitol Trades</button></a>',
                                         unsafe_allow_html=True
                                     )
-                                    st.caption("See House + Senate trades on Capitol Trades website")
+                                    st.caption("View House + Senate trades on Capitol Trades website")
                             else:
-                                st.warning(f"No individual transactions found for {ticker_input} in the Senate records.")
+                                st.warning(f"No matching trades found in the Senate filings for **{ticker_input}**.")
+                                st.markdown(
+                                    f"Try searching directly on "
+                                    f"[Capitol Trades](https://www.capitoltrades.com/trades?asset={ticker_input}) "
+                                    f"which covers both Senate and House trades."
+                                )
+                        else:
+                            # Fallback: direct link to Capitol Trades
+                            st.warning(f"No Senate filings found for **{ticker_input}** in our search.")
+                            st.markdown(
+                                f"**Try these free sources directly:**\n\n"
+                                f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/trades?asset={ticker_input}) — Senate + House trades, updated daily\n"
+                                f"- 📋 [Senate eFD Search](https://efdsearch.senate.gov/search/?q={ticker_input}) — Official Senate filings\n"
+                                f"- 📋 [House Disclosures](https://disclosures-clerk.house.gov/FinancialDisclosure) — Official House filings"
+                            )
+                    else:
+                        # If Senate eFD is unavailable, show Capitol Trades links
+                        st.warning("Could not connect to Senate filing system. Please use the links below:")
+                        st.markdown(
+                            f"**Search these free sources directly:**\n\n"
+                            f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/trades?asset={ticker_input}) — Senate + House trades, updated daily\n"
+                            f"- 📋 [Senate eFD Search](https://efdsearch.senate.gov/search/?q={ticker_input}) — Official Senate filings"
+                        )
 
                 except requests.exceptions.Timeout:
-                    st.error("The request timed out. Please try again in a moment.")
+                    st.error("The request timed out. Please try the links below:")
+                    st.markdown(f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/trades?asset={ticker_input})")
                 except Exception as e:
-                    st.error(f"Something went wrong: {str(e)}")
+                    st.warning(f"Search unavailable. Please use these free sources:")
+                    st.markdown(
+                        f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/trades?asset={ticker_input}) — Senate + House trades, updated daily\n"
+                        f"- 📋 [Senate eFD Search](https://efdsearch.senate.gov/search/?q={ticker_input}) — Official Senate filings"
+                    )
 
     st.markdown("---")
     st.caption(
-        "📌 Data source: [Senate Stock Watcher](https://senatestockwatcher.com) — "
-        "Senate financial disclosures filed under the STOCK Act. "
-        "For House of Representatives trades, visit [Capitol Trades](https://www.capitoltrades.com)."
+        "📌 Data sources: "
+        "[Senate eFD](https://efdsearch.senate.gov) — official Senate financial disclosures | "
+        "[Capitol Trades](https://www.capitoltrades.com) — free Senate + House tracker"
     )
