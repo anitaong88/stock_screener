@@ -15,7 +15,7 @@ st.markdown("### Anita's Stock Screener")
 # --- Version history hidden behind expander (Fix #2) ---
 with st.expander("ℹ️ Version History", expanded=False):
     st.caption(
-        "v5.1 — Jun 2026 — Fixed Capitol Trades URL | v5.0 — Jun 2026 — Removed Google Sheets button | Hidden version history | "
+        "v5.2 — Jun 2026 — Simplified Congressional Trading — direct Capitol Trades redirect | v5.1 — Jun 2026 — Fixed Capitol Trades URL | v5.0 — Jun 2026 — Removed Google Sheets button | Hidden version history | "
         "Switched Congressional Trading to Senate eFD live search (current 2024-2026 data) | "
         "v4.2 — Jun 2026 — Fixed Senate data parsing (list structure vs dict) | "
         "v4.1 — Jun 2026 — Fixed Senate Stock Watcher URL | "
@@ -275,12 +275,15 @@ if page == "📈 Stock Screener":
 elif page == "🏛️ Congressional Trading":
 
     st.markdown("#### 🏛️ Congressional Trading Tracker")
-    st.caption("Search US Congress stock trades (Senate + House) — powered by Senate eFD + Capitol Trades")
+    st.caption("Search US Congress stock trades (Senate + House) — powered by Capitol Trades")
 
     st.info(
-        "📋 **How it works:** Enter a ticker symbol below (e.g. AAPL) and click Search. "
-        "We search the official Senate electronic filing system for current trading disclosures. "
-        "Results include trades from 2012 to present!"
+        "📋 **How it works:**\n\n"
+        "1️⃣ Enter a ticker symbol below (e.g. AAPL, NVDA, MSFT)\n\n"
+        "2️⃣ Click **Search Congressional Trades**\n\n"
+        "3️⃣ Capitol Trades will open showing all politician trades for that stock\n\n"
+        "4️⃣ **On Capitol Trades:** Use the filters at the top to narrow by politician, "
+        "party, transaction type, trade size, and more!"
     )
 
     ticker_input = st.text_input(
@@ -293,123 +296,30 @@ elif page == "🏛️ Congressional Trading":
         if not ticker_input:
             st.warning("Please enter a ticker symbol first!")
         else:
-            with st.spinner(f"Searching congressional trading records for {ticker_input}…"):
-                try:
-                    # Use Senate eFD full-text search — official US government data, current to today
-                    url = (
-                        f"https://efts.senate.gov/LATEST/search-index"
-                        f"?q=%22{ticker_input}%22"
-                        f"&dateRange=custom&fromDate=2020-01-01&toDate=2026-12-31"
-                        f"&senator=&report_types%5B%5D=PTR"
-                    )
-                    headers = {
-                        "User-Agent": "Mozilla/5.0 (compatible; StockScreener/1.0)",
-                        "Accept": "application/json"
-                    }
-                    response = requests.get(url, headers=headers, timeout=20)
-
-                    if response.status_code == 200:
-                        data = response.json()
-                        hits = data.get("hits", {}).get("hits", [])
-
-                        if hits:
-                            results = []
-                            for hit in hits:
-                                src = hit.get("_source", {})
-                                senator  = src.get("senator_full_name", src.get("first_name","") + " " + src.get("last_name","")).strip()
-                                date     = src.get("date_received", src.get("transaction_date", "N/A"))
-                                assets   = src.get("assets", [])
-
-                                if assets:
-                                    for asset in assets:
-                                        ticker_found = asset.get("ticker", "")
-                                        if ticker_input.upper() in ticker_found.upper() or not ticker_found:
-                                            results.append({
-                                                "Senator":      senator,
-                                                "Report Date":  date,
-                                                "Transaction":  asset.get("transaction_type", "N/A"),
-                                                "Amount":       asset.get("amount", "N/A"),
-                                                "Asset":        asset.get("asset_description", ticker_input),
-                                                "Filing":       f"https://efdsearch.senate.gov/search/view/ptr/{src.get('docid','')}/",
-                                            })
-                                else:
-                                    results.append({
-                                        "Senator":      senator,
-                                        "Report Date":  date,
-                                        "Transaction":  "See filing",
-                                        "Amount":       "See filing",
-                                        "Asset":        ticker_input,
-                                        "Filing":       f"https://efdsearch.senate.gov/search/view/ptr/{src.get('docid','')}/",
-                                    })
-
-                            if results:
-                                df = pd.DataFrame(results)
-                                st.success(f"✅ Found **{len(results)} congressional trade record(s)** for **{ticker_input}**!")
-                                st.dataframe(
-                                    df,
-                                    column_config={
-                                        "Filing": st.column_config.LinkColumn("📄 Filing", display_text="View")
-                                    },
-                                    hide_index=True,
-                                    use_container_width=True,
-                                )
-                                st.markdown("### 📥 Download Results")
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    st.download_button(
-                                        "📄 Download CSV",
-                                        df.to_csv(index=False),
-                                        f"congressional_trades_{ticker_input}.csv",
-                                        "text/csv"
-                                    )
-                                    st.caption("Opens in Excel or Google Sheets")
-                                with col2:
-                                    st.markdown(
-                                        f'<a href="https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}" target="_blank">'
-                                        f'<button style="background-color:#1a73e8;color:white;border:none;padding:8px 16px;'
-                                        f'border-radius:4px;cursor:pointer;font-size:14px;width:100%">'
-                                        f'🏛️ More on Capitol Trades</button></a>',
-                                        unsafe_allow_html=True
-                                    )
-                                    st.caption("View House + Senate trades on Capitol Trades website")
-                            else:
-                                st.warning(f"No matching trades found in the Senate filings for **{ticker_input}**.")
-                                st.markdown(
-                                    f"Try searching directly on "
-                                    f"[Capitol Trades](https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}) "
-                                    f"which covers both Senate and House trades."
-                                )
-                        else:
-                            # Fallback: direct link to Capitol Trades
-                            st.warning(f"No Senate filings found for **{ticker_input}** in our search.")
-                            st.markdown(
-                                f"**Try these free sources directly:**\n\n"
-                                f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}) — Senate + House trades, updated daily\n"
-                                f"- 📋 [Senate eFD Search](https://efdsearch.senate.gov/search/?q={ticker_input}) — Official Senate filings\n"
-                                f"- 📋 [House Disclosures](https://disclosures-clerk.house.gov/FinancialDisclosure) — Official House filings"
-                            )
-                    else:
-                        # If Senate eFD is unavailable, show Capitol Trades links
-                        st.warning("Could not connect to Senate filing system. Please use the links below:")
-                        st.markdown(
-                            f"**Search these free sources directly:**\n\n"
-                            f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}) — Senate + House trades, updated daily\n"
-                            f"- 📋 [Senate eFD Search](https://efdsearch.senate.gov/search/?q={ticker_input}) — Official Senate filings"
-                        )
-
-                except requests.exceptions.Timeout:
-                    st.error("The request timed out. Please try the links below:")
-                    st.markdown(f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/issuers?issuerTicker={ticker_input})")
-                except Exception as e:
-                    st.warning(f"Search unavailable. Please use these free sources:")
-                    st.markdown(
-                        f"- 🏛️ [Capitol Trades — {ticker_input}](https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}) — Senate + House trades, updated daily\n"
-                        f"- 📋 [Senate eFD Search](https://efdsearch.senate.gov/search/?q={ticker_input}) — Official Senate filings"
-                    )
+            capitol_trades_url = f"https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}"
+            st.success(f"✅ Opening Capitol Trades for **{ticker_input}**… please wait!")
+            st.markdown(
+                f'<meta http-equiv="refresh" content="1;url={capitol_trades_url}">',
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f'<a href="{capitol_trades_url}" target="_blank">'
+                f'<button style="background-color:#1a73e8;color:white;border:none;padding:12px 24px;'
+                f'border-radius:6px;cursor:pointer;font-size:16px;width:100%;margin-top:10px">'
+                f'🏛️ Click here if Capitol Trades does not open automatically — {ticker_input}</button></a>',
+                unsafe_allow_html=True
+            )
+            st.caption(
+                "💡 Tip: Once on Capitol Trades, use the filters at the top to narrow results "
+                "by politician name, political party, transaction type (Buy/Sell), trade size, and sector!"
+            )
 
     st.markdown("---")
-    st.caption(
-        "📌 Data sources: "
-        "[Senate eFD](https://efdsearch.senate.gov) — official Senate financial disclosures | "
-        "[Capitol Trades](https://www.capitoltrades.com) — free Senate + House tracker"
+    st.markdown(
+        "📌 **About Capitol Trades:** A free, independent website tracking all US Congress "
+        "stock trades filed under the STOCK Act. Covers both Senate and House of Representatives. "
+        "Updated daily with the latest disclosures.\n\n"
+        "[Visit Capitol Trades](https://www.capitoltrades.com) | "
+        "[Official Senate Filings](https://efdsearch.senate.gov) | "
+        "[Official House Filings](https://disclosures-clerk.house.gov/FinancialDisclosure)"
     )
