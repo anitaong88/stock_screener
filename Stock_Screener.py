@@ -8,7 +8,13 @@ from docx import Document
 from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-st.set_page_config(page_title="Anita's Stock Screener", layout="wide", initial_sidebar_state="collapsed")
+# --- Dynamic sidebar: collapsed on Congressional Trading, expanded on Stock Screener ---
+if "page" not in st.session_state:
+    st.session_state.page = "🏛️ Congressional Trading"
+
+sidebar_state = "expanded" if st.session_state.page == "📈 Stock Screener" else "collapsed"
+
+st.set_page_config(page_title="Anita's Stock Screener", layout="wide", initial_sidebar_state=sidebar_state)
 
 st.markdown("""
     <style>
@@ -30,6 +36,7 @@ st.markdown("## Anita's Stock Screener")
 # --- Version history tucked away in sidebar (small footprint) ---
 with st.sidebar.expander("ℹ️", expanded=False):
     st.caption(
+        "v6.1 — Jun 2026 — Sidebar now opens automatically on Stock Screener page and stays hidden on Congressional Trading page | Removed redundant grey button — single working blue button | "
         "v6.0 — Jun 2026 — Compact layout: reduced padding, smaller title, removed divider, condensed Congressional Trading instructions, version history moved to small sidebar icon | "
         "v5.4 — Jun 2026 — Congressional Trading moved to top of menu | Removed ticker box (was misleading — real filtering happens on Capitol Trades) | Added roadmap of what to do once on Capitol Trades | Capitol Trades now opens in a new tab so the app is never replaced — just close that tab to return | "
         "v5.3 — Jun 2026 — Added friendly message for Yahoo Finance rate limiting | "
@@ -47,8 +54,13 @@ with st.sidebar.expander("ℹ️", expanded=False):
 page = st.radio(
     "Select a tool:",
     ["🏛️ Congressional Trading", "📈 Stock Screener"],
-    horizontal=True
+    horizontal=True,
+    index=["🏛️ Congressional Trading", "📈 Stock Screener"].index(st.session_state.page)
 )
+
+if page != st.session_state.page:
+    st.session_state.page = page
+    st.rerun()
 
 # ===========================================================================
 # PAGE 1 — STOCK SCREENER
