@@ -34,6 +34,7 @@ st.markdown("## Anita's Stock Screener")
 # --- Version history tucked away in sidebar (small footprint) ---
 with st.sidebar.expander("ℹ️", expanded=False):
     st.caption(
+        "v6.4 — Jun 2026 — Moved Filter Criteria from sidebar to a visible expander directly on the Stock Screener page (avoids the hidden-sidebar-arrow problem entirely) — filters auto-show when Stock Screener is selected, disappear when switching to Congressional Trading, and values are retained if the user switches back | "
         "v6.3 — Jun 2026 — Removed unreliable JS auto-open attempt (Streamlit limitation: sidebar state can't reliably auto-toggle per page) — replaced with a clear, always-visible instruction on the Stock Screener page instead | "
         "v6.2 — Jun 2026 — Added JS attempt to auto-open sidebar on Stock Screener page, plus a reliable visible instruction as backup since JS may not always work | "
         "v6.1 — Jun 2026 — Sidebar now opens automatically on Stock Screener page and stays hidden on Congressional Trading page | Removed redundant grey button — single working blue button | "
@@ -66,8 +67,6 @@ if page != st.session_state.page:
 # PAGE 1 — STOCK SCREENER
 # ===========================================================================
 if page == "📈 Stock Screener":
-
-    st.info("👈 **Tip:** Click the small arrow **\">>\"** at the top-left corner to open your filter panel and set your criteria!")
 
     TICKERS = {
         "S&P 500": [
@@ -104,20 +103,22 @@ if page == "📈 Stock Screener":
         ]
     }
 
-    # --- Sidebar Filters ---
-    st.sidebar.header("Filter Criteria")
-    market     = st.sidebar.selectbox("Select Market Index", list(TICKERS.keys()))
-    pe_max     = st.sidebar.number_input("Max PE Ratio",     min_value=0.0, value=25.0)
-    roe_min    = st.sidebar.number_input("Min ROE (%)",      min_value=0.0, value=10.0)
-    volume_min = st.sidebar.number_input("Min Daily Volume", min_value=0,   value=1000000)
-    industry   = st.sidebar.text_input("Industry (e.g. Technology)", value="")
-    all_symbols = TICKERS[market]
-    max_stocks  = st.sidebar.slider(
-        "Max stocks to screen (speed vs coverage)",
-        min_value=10, max_value=len(all_symbols), value=min(30, len(all_symbols)), step=10
-    )
-    st.sidebar.markdown("---")
-    st.sidebar.caption("✅ Powered by Yahoo Finance — free, no API key needed, no daily limits!")
+    # --- Filter Criteria — shown on main page inside an expander ---
+    with st.expander("⚙️ **Set Filter Criteria**", expanded=True):
+        market     = st.selectbox("Select Market Index", list(TICKERS.keys()))
+        col_a, col_b = st.columns(2)
+        with col_a:
+            pe_max     = st.number_input("Max PE Ratio",     min_value=0.0, value=25.0)
+            volume_min = st.number_input("Min Daily Volume", min_value=0,   value=1000000)
+        with col_b:
+            roe_min    = st.number_input("Min ROE (%)",      min_value=0.0, value=10.0)
+            industry   = st.text_input("Industry (e.g. Technology)", value="")
+        all_symbols = TICKERS[market]
+        max_stocks  = st.slider(
+            "Max stocks to screen (speed vs coverage)",
+            min_value=10, max_value=len(all_symbols), value=min(30, len(all_symbols)), step=10
+        )
+        st.caption("✅ Powered by Yahoo Finance — free, no API key needed, no daily limits!")
 
     # --- Helper: Build HTML table ---
     def build_html(df):
