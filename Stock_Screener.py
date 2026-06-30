@@ -8,7 +8,7 @@ from docx import Document
 from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
+st.set_page_config(page_title="Anita's Stock Screener", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
@@ -16,10 +16,16 @@ st.markdown("""
             padding-top: 0.8rem;
             padding-bottom: 1rem;
         }
+        html, body, [class*="css"] {
+            font-size: 17px;
+        }
+        p, .stMarkdown, .stCaption, label {
+            font-size: 17px !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("##### Anita's Stock Screener")
+st.markdown("## Anita's Stock Screener")
 
 # --- Version history tucked away in sidebar (small footprint) ---
 with st.sidebar.expander("ℹ️", expanded=False):
@@ -308,7 +314,7 @@ if page == "📈 Stock Screener":
 # ===========================================================================
 elif page == "🏛️ Congressional Trading":
 
-    st.markdown("##### 🏛️ Congressional Trading Tracker")
+    st.markdown("### 🏛️ Congressional Trading Tracker")
     st.caption("Explore US Congress stock trades (Senate + House) — powered by Capitol Trades")
 
     st.markdown(
@@ -317,19 +323,18 @@ elif page == "🏛️ Congressional Trading":
         "💰 sort by trade size · 🧑‍⚖️ follow a politician — trades are sorted by most recent by default."
     )
 
-    if st.button("🏛️ Explore Congressional Trades"):
-        capitol_trades_url = "https://www.capitoltrades.com/trades"
-        st.markdown(
-            f'<a href="{capitol_trades_url}" target="_blank">'
-            f'<button style="background-color:#1a73e8;color:white;border:none;padding:12px 24px;'
-            f'border-radius:6px;cursor:pointer;font-size:16px;width:100%;margin-top:10px">'
-            f'🏛️ Open Capitol Trades (opens in a new tab)</button></a>',
-            unsafe_allow_html=True
-        )
-        st.caption(
-            "💡 Capitol Trades opens in a **new browser tab** — your Stock Screener app stays "
-            "open here. When you're done exploring, just **close that tab** to come back!"
-        )
+    capitol_trades_url = "https://www.capitoltrades.com/trades"
+    st.markdown(
+        f'<a href="{capitol_trades_url}" target="_blank">'
+        f'<button style="background-color:#1a73e8;color:white;border:none;padding:12px 24px;'
+        f'border-radius:6px;cursor:pointer;font-size:17px;width:100%;margin-top:10px">'
+        f'🏛️ Open Capitol Trades (opens in a new tab)</button></a>',
+        unsafe_allow_html=True
+    )
+    st.caption(
+        "💡 Capitol Trades opens in a **new browser tab** — your Stock Screener app stays "
+        "open here. When you're done exploring, just **close that tab** to come back!"
+    )
 
     st.markdown("---")
     st.markdown(
