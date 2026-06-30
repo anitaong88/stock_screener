@@ -15,6 +15,7 @@ st.markdown("### Anita's Stock Screener")
 # --- Version history hidden behind expander (Fix #2) ---
 with st.expander("ℹ️ Version History", expanded=False):
     st.caption(
+        "v5.3 — Jun 2026 — Added friendly message for Yahoo Finance rate limiting | "
         "v5.2 — Jun 2026 — Simplified Congressional Trading — direct Capitol Trades redirect | v5.1 — Jun 2026 — Fixed Capitol Trades URL | v5.0 — Jun 2026 — Removed Google Sheets button | Hidden version history | "
         "Switched Congressional Trading to Senate eFD live search (current 2024-2026 data) | "
         "v4.2 — Jun 2026 — Fixed Senate data parsing (list structure vs dict) | "
@@ -183,7 +184,10 @@ if page == "📈 Stock Screener":
                 return None, "No price data — symbol may be delisted or invalid"
             return {"pe": pe, "roe": roe, "vol": vol, "ind": ind, "name": name, "price": price}, None
         except Exception as e:
-            return None, f"Error: {str(e)}"
+            err_text = str(e)
+            if "Too Many Requests" in err_text or "Rate limited" in err_text or "429" in err_text:
+                return None, "RATE_LIMITED"
+            return None, f"Error: {err_text}"
 
     # --- Main Screener ---
     st.markdown("#### 🔍 Screen Stocks")
@@ -195,6 +199,7 @@ if page == "📈 Stock Screener":
         results  = []
         skipped  = []
         skip_log = []
+        rate_limited_count = 0
         progress = st.progress(0)
         status   = st.empty()
 
@@ -203,7 +208,11 @@ if page == "📈 Stock Screener":
             data, error = get_stock_data(symbol)
             if not data:
                 skipped.append(symbol)
-                skip_log.append(f"**{symbol}** — {error}")
+                if error == "RATE_LIMITED":
+                    rate_limited_count += 1
+                    skip_log.append(f"**{symbol}** — Temporarily unavailable (high traffic)")
+                else:
+                    skip_log.append(f"**{symbol}** — {error}")
                 progress.progress((i + 1) / len(symbols))
                 time.sleep(0.2)
                 continue
@@ -241,6 +250,21 @@ if page == "📈 Stock Screener":
         status.empty()
         progress.empty()
 
+        # --- Friendly message if rate limiting affected most of the screen ---
+        if rate_limited_count > 0 and rate_limited_count >= len(symbols) * 0.5:
+            st.warning(
+                "🚦 **Yahoo Finance is experiencing high traffic right now.**\n\n"
+                "This isn't a problem with the app — Yahoo's free data service is temporarily "
+                "limiting requests from many users at once. This usually clears up within a "
+                "few minutes.\n\n"
+                "**What you can try:**\n"
+                "- Wait 5–10 minutes and click 🚀 Screen Stocks again\n"
+                "- Try a smaller index like Dow Jones, or reduce the number of stocks to screen\n\n"
+                "💡 *I'm aware of this limitation and am exploring a more reliable, paid data "
+                "source for the future so this happens less often. Thank you for your patience "
+                "as we improve the app together!* — Anita"
+            )
+
         if results:
             st.success(f"✅ Found {len(results)} matching stocks from {market}!")
             df = pd.DataFrame(results)
@@ -260,7 +284,8 @@ if page == "📈 Stock Screener":
                 st.download_button("📝 Word Doc", build_docx(df), "screener_results.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 st.caption("Opens in Word, Google Docs, LibreOffice")
         else:
-            st.warning("No stocks matched your criteria. Try relaxing your filters!")
+            if rate_limited_count < len(symbols) * 0.5:
+                st.warning("No stocks matched your criteria. Try relaxing your filters!")
 
         if skip_log:
             with st.expander(f"ℹ️ Details — {len(skipped)} skipped + filtered stocks", expanded=False):
