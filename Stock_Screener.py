@@ -17,7 +17,7 @@ st.set_page_config(page_title="Anita's Stock Screener", layout="wide", initial_s
 st.markdown("""
     <style>
         .block-container {
-            padding-top: 0.8rem;
+            padding-top: 0.5rem;
             padding-bottom: 1rem;
         }
         html, body, [class*="css"] {
@@ -33,6 +33,8 @@ st.markdown("## Anita's Stock Screener")
 
 # --- Version history (kept as a code comment for now — removed from UI since
 #     the sidebar's mere presence prevents full collapse. Revisit placement later.) ---
+# v6.6 — Jun 2026 — Condensed Filter Criteria into 3 columns instead of 2, removed redundant "Screen Stocks" heading/caption above the button, tightened top padding — goal: fit everything in one screen without scrolling
+# v6.6 — Jun 2026 — Condensed Filter Criteria into a 4-column top row (Market/PE/ROE/Volume) plus a second row (Industry/Slider) — reduces from 3 rows to 2 rows so the Screen Stocks button is reachable with less scrolling
 # v6.5 — Jun 2026 — Removed version history from sidebar entirely (its presence kept the sidebar from fully disappearing) — history now lives only as this code comment
 # v6.4 — Jun 2026 — Moved Filter Criteria from sidebar to a visible expander directly on the Stock Screener page (avoids the hidden-sidebar-arrow problem entirely) — filters auto-show when Stock Screener is selected, disappear when switching to Congressional Trading, and values are retained if the user switches back
 # v6.3 — Jun 2026 — Removed unreliable JS auto-open attempt (Streamlit limitation: sidebar state can't reliably auto-toggle per page) — replaced with a clear, always-visible instruction on the Stock Screener page instead
@@ -101,20 +103,25 @@ if page == "📈 Stock Screener":
 
     # --- Filter Criteria — shown on main page inside an expander ---
     with st.expander("⚙️ **Set Filter Criteria**", expanded=True):
-        market     = st.selectbox("Select Market Index", list(TICKERS.keys()))
-        col_a, col_b = st.columns(2)
+        col_a, col_b, col_c, col_d = st.columns(4)
         with col_a:
-            pe_max     = st.number_input("Max PE Ratio",     min_value=0.0, value=25.0)
-            volume_min = st.number_input("Min Daily Volume", min_value=0,   value=1000000)
+            market = st.selectbox("Market Index", list(TICKERS.keys()))
         with col_b:
-            roe_min    = st.number_input("Min ROE (%)",      min_value=0.0, value=10.0)
-            industry   = st.text_input("Industry (e.g. Technology)", value="")
-        all_symbols = TICKERS[market]
-        max_stocks  = st.slider(
-            "Max stocks to screen (speed vs coverage)",
-            min_value=10, max_value=len(all_symbols), value=min(30, len(all_symbols)), step=10
-        )
-        st.caption("✅ Powered by Yahoo Finance — free, no API key needed, no daily limits!")
+            pe_max = st.number_input("Max PE Ratio", min_value=0.0, value=25.0)
+        with col_c:
+            roe_min = st.number_input("Min ROE (%)", min_value=0.0, value=10.0)
+        with col_d:
+            volume_min = st.number_input("Min Volume", min_value=0, value=1000000)
+
+        col_e, col_f = st.columns([1, 2])
+        with col_e:
+            industry = st.text_input("Industry (optional)", value="")
+        with col_f:
+            all_symbols = TICKERS[market]
+            max_stocks = st.slider(
+                "Max stocks to screen", min_value=10, max_value=len(all_symbols),
+                value=min(30, len(all_symbols)), step=10
+            )
 
     # --- Helper: Build HTML table ---
     def build_html(df):
@@ -214,9 +221,6 @@ if page == "📈 Stock Screener":
             return None, f"Error: {err_text}"
 
     # --- Main Screener ---
-    st.markdown("#### 🔍 Screen Stocks")
-    st.caption("Powered by Yahoo Finance — free and no API key required!")
-
     if st.button("🚀 Screen Stocks"):
         symbols  = all_symbols[:max_stocks]
         st.info(f"Screening {len(symbols)} stocks from {market}… this may take a minute, please wait!")
