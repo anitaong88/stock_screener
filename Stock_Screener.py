@@ -31,25 +31,21 @@ st.markdown("""
 
 st.markdown("## Anita's Stock Screener")
 
-# --- Version history tucked away in sidebar (small footprint) ---
-with st.sidebar.expander("ℹ️", expanded=False):
-    st.caption(
-        "v6.4 — Jun 2026 — Moved Filter Criteria from sidebar to a visible expander directly on the Stock Screener page (avoids the hidden-sidebar-arrow problem entirely) — filters auto-show when Stock Screener is selected, disappear when switching to Congressional Trading, and values are retained if the user switches back | "
-        "v6.3 — Jun 2026 — Removed unreliable JS auto-open attempt (Streamlit limitation: sidebar state can't reliably auto-toggle per page) — replaced with a clear, always-visible instruction on the Stock Screener page instead | "
-        "v6.2 — Jun 2026 — Added JS attempt to auto-open sidebar on Stock Screener page, plus a reliable visible instruction as backup since JS may not always work | "
-        "v6.1 — Jun 2026 — Sidebar now opens automatically on Stock Screener page and stays hidden on Congressional Trading page | Removed redundant grey button — single working blue button | "
-        "v6.0 — Jun 2026 — Compact layout: reduced padding, smaller title, removed divider, condensed Congressional Trading instructions, version history moved to small sidebar icon | "
-        "v5.4 — Jun 2026 — Congressional Trading moved to top of menu | Removed ticker box (was misleading — real filtering happens on Capitol Trades) | Added roadmap of what to do once on Capitol Trades | Capitol Trades now opens in a new tab so the app is never replaced — just close that tab to return | "
-        "v5.3 — Jun 2026 — Added friendly message for Yahoo Finance rate limiting | "
-        "v5.2 — Jun 2026 — Simplified Congressional Trading — direct Capitol Trades redirect | v5.1 — Jun 2026 — Fixed Capitol Trades URL | v5.0 — Jun 2026 — Removed Google Sheets button | Hidden version history | "
-        "Switched Congressional Trading to Senate eFD live search (current 2024-2026 data) | "
-        "v4.2 — Jun 2026 — Fixed Senate data parsing (list structure vs dict) | "
-        "v4.1 — Jun 2026 — Fixed Senate Stock Watcher URL | "
-        "v4.0 — Jun 2026 — Added Congressional Trading Tracker | "
-        "v3.0 — Jun 2026 — Switched to Yahoo Finance | "
-        "v2.0 — Jun 2026 — Fixed FMP endpoints | "
-        "v1.9 — May 2026 — Initial release"
-    )
+# --- Version history (kept as a code comment for now — removed from UI since
+#     the sidebar's mere presence prevents full collapse. Revisit placement later.) ---
+# v6.5 — Jun 2026 — Removed version history from sidebar entirely (its presence kept the sidebar from fully disappearing) — history now lives only as this code comment
+# v6.4 — Jun 2026 — Moved Filter Criteria from sidebar to a visible expander directly on the Stock Screener page (avoids the hidden-sidebar-arrow problem entirely) — filters auto-show when Stock Screener is selected, disappear when switching to Congressional Trading, and values are retained if the user switches back
+# v6.3 — Jun 2026 — Removed unreliable JS auto-open attempt (Streamlit limitation: sidebar state can't reliably auto-toggle per page) — replaced with a clear, always-visible instruction on the Stock Screener page instead
+# v6.2 — Jun 2026 — Added JS attempt to auto-open sidebar on Stock Screener page, plus a reliable visible instruction as backup since JS may not always work
+# v6.1 — Jun 2026 — Sidebar now opens automatically on Stock Screener page and stays hidden on Congressional Trading page | Removed redundant grey button — single working blue button
+# v6.0 — Jun 2026 — Compact layout: reduced padding, smaller title, removed divider, condensed Congressional Trading instructions, version history moved to small sidebar icon
+# v5.4 — Jun 2026 — Congressional Trading moved to top of menu | Removed ticker box (was misleading — real filtering happens on Capitol Trades) | Added roadmap of what to do once on Capitol Trades | Capitol Trades now opens in a new tab so the app is never replaced — just close that tab to return
+# v5.3 — Jun 2026 — Added friendly message for Yahoo Finance rate limiting
+# v5.2 — Jun 2026 — Simplified Congressional Trading — direct Capitol Trades redirect | v5.1 — Jun 2026 — Fixed Capitol Trades URL | v5.0 — Jun 2026 — Removed Google Sheets button | Hidden version history
+# v4.x — Switched Congressional Trading to Senate eFD live search | Fixed Senate data parsing | Fixed Senate Stock Watcher URL | Added Congressional Trading Tracker
+# v3.0 — Jun 2026 — Switched to Yahoo Finance
+# v2.0 — Jun 2026 — Fixed FMP endpoints
+# v1.9 — May 2026 — Initial release
 
 # --- Navigation ---
 page = st.radio(
