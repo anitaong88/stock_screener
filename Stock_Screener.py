@@ -10,11 +10,21 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 st.set_page_config(page_title="Anita's Stock Screener", layout="wide")
 
-st.markdown("### Anita's Stock Screener")
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 0.8rem;
+            padding-bottom: 1rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
-# --- Version history hidden behind expander (Fix #2) ---
-with st.expander("ℹ️ Version History", expanded=False):
+st.markdown("##### Anita's Stock Screener")
+
+# --- Version history tucked away in sidebar (small footprint) ---
+with st.sidebar.expander("ℹ️", expanded=False):
     st.caption(
+        "v6.0 — Jun 2026 — Compact layout: reduced padding, smaller title, removed divider, condensed Congressional Trading instructions, version history moved to small sidebar icon | "
         "v5.4 — Jun 2026 — Congressional Trading moved to top of menu | Removed ticker box (was misleading — real filtering happens on Capitol Trades) | Added roadmap of what to do once on Capitol Trades | Capitol Trades now opens in a new tab so the app is never replaced — just close that tab to return | "
         "v5.3 — Jun 2026 — Added friendly message for Yahoo Finance rate limiting | "
         "v5.2 — Jun 2026 — Simplified Congressional Trading — direct Capitol Trades redirect | v5.1 — Jun 2026 — Fixed Capitol Trades URL | v5.0 — Jun 2026 — Removed Google Sheets button | Hidden version history | "
@@ -33,8 +43,6 @@ page = st.radio(
     ["🏛️ Congressional Trading", "📈 Stock Screener"],
     horizontal=True
 )
-
-st.markdown("---")
 
 # ===========================================================================
 # PAGE 1 — STOCK SCREENER
@@ -300,29 +308,17 @@ if page == "📈 Stock Screener":
 # ===========================================================================
 elif page == "🏛️ Congressional Trading":
 
-    st.markdown("#### 🏛️ Congressional Trading Tracker")
+    st.markdown("##### 🏛️ Congressional Trading Tracker")
     st.caption("Explore US Congress stock trades (Senate + House) — powered by Capitol Trades")
 
-    st.info(
-        "📋 **How it works:**\n\n"
-        "1️⃣ Click **Explore Congressional Trades** below\n\n"
-        "2️⃣ Capitol Trades will open showing the latest trades from all members of Congress\n\n"
-        "3️⃣ **On Capitol Trades:** Use the filters at the top to narrow by ticker, politician, "
-        "party, transaction type, trade size, and more!"
-    )
-
     st.markdown(
-        "**🗺️ A quick roadmap for when you arrive:**\n\n"
-        "- 🔍 **Search a company** — type a ticker or company name (e.g. AAPL) in the search bar\n"
-        "- 🟢 **See only purchases** — filter by transaction type and select **Buy**\n"
-        "- 💰 **Find the biggest moves** — sort by trade size to spot large transactions\n"
-        "- 🧑‍⚖️ **Follow a politician** — filter by name or political party\n"
-        "- 📅 **Stay current** — trades are sorted by most recent filing date by default"
+        "**📋 Click below to open Capitol Trades**, then use its filters to narrow by ticker, "
+        "politician, party, or trade size. Quick ideas: 🔍 search a company · 🟢 filter **Buy** only · "
+        "💰 sort by trade size · 🧑‍⚖️ follow a politician — trades are sorted by most recent by default."
     )
 
     if st.button("🏛️ Explore Congressional Trades"):
         capitol_trades_url = "https://www.capitoltrades.com/trades"
-        st.success("✅ Click the button below to open Capitol Trades in a new tab!")
         st.markdown(
             f'<a href="{capitol_trades_url}" target="_blank">'
             f'<button style="background-color:#1a73e8;color:white;border:none;padding:12px 24px;'
