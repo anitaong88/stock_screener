@@ -29,7 +29,7 @@ with st.expander("ℹ️ Version History", expanded=False):
 # --- Navigation ---
 page = st.radio(
     "Select a tool:",
-    ["📈 Stock Screener", "🏛️ Congressional Trading"],
+    ["🏛️ Congressional Trading", "📈 Stock Screener"],
     horizontal=True
 )
 
@@ -300,44 +300,43 @@ if page == "📈 Stock Screener":
 elif page == "🏛️ Congressional Trading":
 
     st.markdown("#### 🏛️ Congressional Trading Tracker")
-    st.caption("Search US Congress stock trades (Senate + House) — powered by Capitol Trades")
+    st.caption("Explore US Congress stock trades (Senate + House) — powered by Capitol Trades")
 
     st.info(
         "📋 **How it works:**\n\n"
-        "1️⃣ Enter a ticker symbol below (e.g. AAPL, NVDA, MSFT)\n\n"
-        "2️⃣ Click **Search Congressional Trades**\n\n"
-        "3️⃣ Capitol Trades will open showing all politician trades for that stock\n\n"
-        "4️⃣ **On Capitol Trades:** Use the filters at the top to narrow by politician, "
+        "1️⃣ Click **Explore Congressional Trades** below\n\n"
+        "2️⃣ Capitol Trades will open showing the latest trades from all members of Congress\n\n"
+        "3️⃣ **On Capitol Trades:** Use the filters at the top to narrow by ticker, politician, "
         "party, transaction type, trade size, and more!"
     )
 
-    ticker_input = st.text_input(
-        "Enter Ticker Symbol",
-        value="",
-        placeholder="e.g. AAPL, MSFT, NVDA, TSLA"
-    ).upper().strip()
+    st.markdown(
+        "**🗺️ A quick roadmap for when you arrive:**\n\n"
+        "- 🔍 **Search a company** — type a ticker or company name (e.g. AAPL) in the search bar\n"
+        "- 🟢 **See only purchases** — filter by transaction type and select **Buy**\n"
+        "- 💰 **Find the biggest moves** — sort by trade size to spot large transactions\n"
+        "- 🧑‍⚖️ **Follow a politician** — filter by name or political party\n"
+        "- 📅 **Stay current** — trades are sorted by most recent filing date by default"
+    )
 
-    if st.button("🔍 Search Congressional Trades"):
-        if not ticker_input:
-            st.warning("Please enter a ticker symbol first!")
-        else:
-            capitol_trades_url = f"https://www.capitoltrades.com/issuers?issuerTicker={ticker_input}"
-            st.success(f"✅ Opening Capitol Trades for **{ticker_input}**… please wait!")
-            st.markdown(
-                f'<meta http-equiv="refresh" content="1;url={capitol_trades_url}">',
-                unsafe_allow_html=True
-            )
-            st.markdown(
-                f'<a href="{capitol_trades_url}" target="_blank">'
-                f'<button style="background-color:#1a73e8;color:white;border:none;padding:12px 24px;'
-                f'border-radius:6px;cursor:pointer;font-size:16px;width:100%;margin-top:10px">'
-                f'🏛️ Click here if Capitol Trades does not open automatically — {ticker_input}</button></a>',
-                unsafe_allow_html=True
-            )
-            st.caption(
-                "💡 Tip: Once on Capitol Trades, use the filters at the top to narrow results "
-                "by politician name, political party, transaction type (Buy/Sell), trade size, and sector!"
-            )
+    if st.button("🏛️ Explore Congressional Trades"):
+        capitol_trades_url = "https://www.capitoltrades.com/trades"
+        st.success("✅ Opening Capitol Trades… please wait!")
+        st.markdown(
+            f'<meta http-equiv="refresh" content="1;url={capitol_trades_url}">',
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<a href="{capitol_trades_url}" target="_blank">'
+            f'<button style="background-color:#1a73e8;color:white;border:none;padding:12px 24px;'
+            f'border-radius:6px;cursor:pointer;font-size:16px;width:100%;margin-top:10px">'
+            f'🏛️ Click here if Capitol Trades does not open automatically</button></a>',
+            unsafe_allow_html=True
+        )
+        st.caption(
+            "💡 Tip: Once on Capitol Trades, use the filters at the top to narrow results "
+            "by ticker, politician name, political party, transaction type (Buy/Sell), trade size, and sector!"
+        )
 
     st.markdown("---")
     st.markdown(
