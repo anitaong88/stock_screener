@@ -8,13 +8,11 @@ from docx import Document
 from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-# --- Dynamic sidebar: collapsed on Congressional Trading, expanded on Stock Screener ---
+# --- Sidebar starts collapsed; Stock Screener page shows a clear instruction to open it ---
 if "page" not in st.session_state:
     st.session_state.page = "🏛️ Congressional Trading"
 
-sidebar_state = "expanded" if st.session_state.page == "📈 Stock Screener" else "collapsed"
-
-st.set_page_config(page_title="Anita's Stock Screener", layout="wide", initial_sidebar_state=sidebar_state)
+st.set_page_config(page_title="Anita's Stock Screener", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
@@ -36,6 +34,8 @@ st.markdown("## Anita's Stock Screener")
 # --- Version history tucked away in sidebar (small footprint) ---
 with st.sidebar.expander("ℹ️", expanded=False):
     st.caption(
+        "v6.3 — Jun 2026 — Removed unreliable JS auto-open attempt (Streamlit limitation: sidebar state can't reliably auto-toggle per page) — replaced with a clear, always-visible instruction on the Stock Screener page instead | "
+        "v6.2 — Jun 2026 — Added JS attempt to auto-open sidebar on Stock Screener page, plus a reliable visible instruction as backup since JS may not always work | "
         "v6.1 — Jun 2026 — Sidebar now opens automatically on Stock Screener page and stays hidden on Congressional Trading page | Removed redundant grey button — single working blue button | "
         "v6.0 — Jun 2026 — Compact layout: reduced padding, smaller title, removed divider, condensed Congressional Trading instructions, version history moved to small sidebar icon | "
         "v5.4 — Jun 2026 — Congressional Trading moved to top of menu | Removed ticker box (was misleading — real filtering happens on Capitol Trades) | Added roadmap of what to do once on Capitol Trades | Capitol Trades now opens in a new tab so the app is never replaced — just close that tab to return | "
@@ -67,7 +67,7 @@ if page != st.session_state.page:
 # ===========================================================================
 if page == "📈 Stock Screener":
 
-    st.write("Filter stocks based on your investment criteria on the panel on the left")
+    st.info("👈 **Tip:** Click the small arrow **\">>\"** at the top-left corner to open your filter panel and set your criteria!")
 
     TICKERS = {
         "S&P 500": [
