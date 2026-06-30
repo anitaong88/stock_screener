@@ -15,6 +15,7 @@ st.markdown("### Anita's Stock Screener")
 # --- Version history hidden behind expander (Fix #2) ---
 with st.expander("ℹ️ Version History", expanded=False):
     st.caption(
+        "v5.4 — Jun 2026 — Congressional Trading moved to top of menu | Removed ticker box (was misleading — real filtering happens on Capitol Trades) | Added roadmap of what to do once on Capitol Trades | Capitol Trades now opens in a new tab so the app is never replaced — just close that tab to return | "
         "v5.3 — Jun 2026 — Added friendly message for Yahoo Finance rate limiting | "
         "v5.2 — Jun 2026 — Simplified Congressional Trading — direct Capitol Trades redirect | v5.1 — Jun 2026 — Fixed Capitol Trades URL | v5.0 — Jun 2026 — Removed Google Sheets button | Hidden version history | "
         "Switched Congressional Trading to Senate eFD live search (current 2024-2026 data) | "
@@ -321,21 +322,17 @@ elif page == "🏛️ Congressional Trading":
 
     if st.button("🏛️ Explore Congressional Trades"):
         capitol_trades_url = "https://www.capitoltrades.com/trades"
-        st.success("✅ Opening Capitol Trades… please wait!")
-        st.markdown(
-            f'<meta http-equiv="refresh" content="1;url={capitol_trades_url}">',
-            unsafe_allow_html=True
-        )
+        st.success("✅ Click the button below to open Capitol Trades in a new tab!")
         st.markdown(
             f'<a href="{capitol_trades_url}" target="_blank">'
             f'<button style="background-color:#1a73e8;color:white;border:none;padding:12px 24px;'
             f'border-radius:6px;cursor:pointer;font-size:16px;width:100%;margin-top:10px">'
-            f'🏛️ Click here if Capitol Trades does not open automatically</button></a>',
+            f'🏛️ Open Capitol Trades (opens in a new tab)</button></a>',
             unsafe_allow_html=True
         )
         st.caption(
-            "💡 Tip: Once on Capitol Trades, use the filters at the top to narrow results "
-            "by ticker, politician name, political party, transaction type (Buy/Sell), trade size, and sector!"
+            "💡 Capitol Trades opens in a **new browser tab** — your Stock Screener app stays "
+            "open here. When you're done exploring, just **close that tab** to come back!"
         )
 
     st.markdown("---")
