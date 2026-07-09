@@ -17,7 +17,7 @@ st.set_page_config(page_title="Anita's Stock Screener", layout="wide", initial_s
 st.markdown("""
     <style>
         .block-container {
-            padding-top: 0.5rem;
+            padding-top: 2rem;
             padding-bottom: 1rem;
         }
         html, body, [class*="css"] {
