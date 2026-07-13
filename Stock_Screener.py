@@ -66,6 +66,16 @@ if page != st.session_state.page:
 # ===========================================================================
 if page == "📈 Stock Screener":
 
+    st.warning("""
+    ⚠️ **This feature is currently unavailable.**
+    
+    We are working on improving the Stock Screener and it will be fully demonstrated in **Video 2** — coming soon!
+    
+    In the meantime, please enjoy the **🏛️ Congressional Trading Tracker** on the left menu!
+    """)
+    st.stop()
+
+
     TICKERS = {
         "S&P 500": [
             "AAPL","MSFT","NVDA","AMZN","META","GOOGL","GOOG","BRK-B","LLY","AVGO",
